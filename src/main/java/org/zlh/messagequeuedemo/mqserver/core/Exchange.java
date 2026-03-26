@@ -23,7 +23,7 @@ public class Exchange {
     // 我们使用名字来作为每一个交换机身份的区分的唯一标识
     private String name;
     // 我们定义枚举类来区分不同类型的交换机（直接交换机，扇出交换机，主题交换机），默认是直接交换机
-    private ExchangeTtype exchangeTtype = ExchangeTtype.DIRECT;
+    private ExchangeTtype exchangeType = ExchangeTtype.DIRECT;
     // durable表示我们的交换机是否要进行持久化进行存储，默认给的是不进行持久化存储
     private Boolean isPermanent = false;
     // AUTODelete表示我们的队列是否要进行自动删除，如果当前交换机没有生产者使用了就会自动被删除了
@@ -38,8 +38,10 @@ public class Exchange {
 
     //注意我们不能重写我们getter和setter方法，因为他们要求的数据返回值一致
 
+    // 数据库交互的getter与setter
+
     //把当前的argument内容转成JSON字符串
-    public String getArguments() {
+    public String getArgument() {
         try {
             return JsonUtils.getArgumentJson(this.argument);
         } catch (JsonProcessingException e) {
@@ -48,11 +50,27 @@ public class Exchange {
     }
 
     //把数据库的JSON对象转成Map，构造我们的对象的这个属性
-    public void setArguments(String json) {
+    public void setArgument(String json) {
         try {
             this.argument = JsonUtils.setArgumentJson(json);
         } catch (JsonProcessingException e) {
             this.argument = new HashMap<>();
         }
+    }
+
+    //代码内部使用方便，例如编写测试用例
+
+    //再提供一组argument的get与set用来更好地获取与设置键值对
+    public Object getArgumentNOJSON(String key){
+        return argument.get(key);
+    }
+
+    public void setArgumentNOJSON(String key,Object value){
+        this.argument.put(key,value);
+    }
+
+    //获取到argument的MAP本身
+    public Map<String,Object> getArgumentMap(){
+        return this.argument;
     }
 }

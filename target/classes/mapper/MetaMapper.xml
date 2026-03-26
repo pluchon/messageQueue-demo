@@ -2,9 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.zlh.messagequeuedemo.mqserver.mapper.MetaMapper">
-<!--  我们使用update进行建表操作  -->
+    <!--  我们使用update进行建表操作  -->
 
-<!--  创建交换机表，和我们的交换机类对应  -->
+    <!--  创建交换机表，和我们的交换机类对应  -->
     <update id="createExchangeTable">
         create table if not exists exchange(
             name varchar(50) primary key ,
@@ -15,7 +15,7 @@
         )
     </update>
 
-<!--  创建队列表  -->
+    <!--  创建队列表  -->
     <update id="createQueueTable">
         create table if not exists queue(
             name varchar(50) primary key ,
@@ -26,18 +26,20 @@
         )
     </update>
 
-<!--  创建绑定表  -->
+    <!--  创建绑定表  -->
     <update id="createBingdingTable">
         create table if not exists bingding(
-            exchange_name varchar(50) primary key ,
+            exchange_name varchar(50),
             queue_name varchar(50),
-            binding_key varchar(256)
+            binding_key varchar(256),
+        <!-- 使用联合主键，避免如果交换机名字重复了，我要绑定其他队列就不成功！ -->
+            primary key (exchange_name, queue_name)
         )
     </update>
 
-<!--  插入与删除  -->
+    <!--  插入与删除  -->
     <insert id="insertExchange" parameterType="org.zlh.messagequeuedemo.mqserver.core.Exchange">
-        insert into exchange values (#{name},#{exchangeTtype},#{isPermanent},#{isDelete},#{argument})
+        insert into exchange values (#{name},#{exchangeType},#{isPermanent},#{isDelete},#{argument})
     </insert>
 
     <delete id="deleteExchange" parameterType="java.lang.String">
@@ -59,4 +61,18 @@
     <delete id="deleteBingding" parameterType="org.zlh.messagequeuedemo.mqserver.core.Bingding">
         delete from bingding where exchange_name = #{exchangeName} and queue_name = #{queueName};
     </delete>
+
+    <!--  查找操作（驼峰自动转换已在 yaml 中开启，无需手写 resultMap）  -->
+    <select id="queryAllExchange" resultType="org.zlh.messagequeuedemo.mqserver.core.Exchange">
+        select * from exchange;
+    </select>
+
+    <select id="queryAllQueue" resultType="org.zlh.messagequeuedemo.mqserver.core.MSGQueue">
+        select * from queue;
+    </select>
+
+    <select id="queryAllBingding" resultType="org.zlh.messagequeuedemo.mqserver.core.Bingding">
+        select * from bingding;
+    </select>
+
 </mapper>

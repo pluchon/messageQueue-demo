@@ -34,6 +34,8 @@ public class MSGQueue {
     @Setter(AccessLevel.NONE)
     private Map<String,Object> arguments = new HashMap<>();
 
+    // 数据库中使用
+
     //从数据库的JSON字符串中取对象，并赋值到我们的arguments属性
     public void setArguments(String argumentsJson){
         try {
@@ -43,12 +45,21 @@ public class MSGQueue {
         }
     }
 
-    //将当前arguments以JSON格式写入数据库
-    public String getArgumentsJSON(){
+    // 将当前 arguments 以 JSON 格式写入数据库（MyBatis #{arguments} 会调用此方法）
+    public String getArguments() {
         try {
             return JsonUtils.getArgumentJson(arguments);
         } catch (JsonProcessingException e) {
             return "{}";
         }
+    }
+
+    //代码中使用
+    public void setArgumentsNOJSON(String key,Object value){
+        this.arguments.put(key,value);
+    }
+
+    public Map<String,Object> getArgumentsNOJSON(){
+        return this.arguments;
     }
 }
