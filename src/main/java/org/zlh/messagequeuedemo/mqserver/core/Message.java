@@ -34,7 +34,7 @@ public class Message implements Serializable {
     //加入transient表示我们不被序列化
     private transient Long offsetBeg = 0L;
     private transient Long offsetEnd = 0L;
-    // isValid表示我们的消息在文件中是否是有效的消息（逻辑删除）
+    // isValid表示我们的消息在文件中是否是有效的消息（逻辑删除），避免我们直接删除文件内容导致后续其他消息内容的移位
     // 0x1 -> 有效，0x0 -> 无效
     // 为什么使用Byte呢，因为我们要在文件中表示，使用Byte进行统一表示比较好
     private Byte isVaild = 0x1;
