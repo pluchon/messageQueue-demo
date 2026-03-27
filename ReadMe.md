@@ -15,18 +15,16 @@
 
 > 注意，我们每个类方法以及属性上都有我们对应的注释，我们这里就不重复了  
 
-#### 1. 交换机类  
+#### 1. 交换机类
+
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.zlh.messagequeuedemo.common.utils.JsonUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +51,7 @@ public class Exchange {
     // 告诉DATA注解这个参数无需自动生成get与set，让我们来自己写
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    private Map<String,Object> argument = new HashMap<>();
+    private Map<String, Object> argument = new HashMap<>();
 
     //注意我们不能重写我们getter和setter方法，因为他们要求的数据返回值一致
 
@@ -62,7 +60,7 @@ public class Exchange {
     //把当前的argument内容转成JSON字符串
     public String getArgument() {
         try {
-            return JsonUtils.getArgumentJson(this.argument);
+            return org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils.getArgumentJson(this.argument);
         } catch (JsonProcessingException e) {
             return "{}";
         }
@@ -71,7 +69,7 @@ public class Exchange {
     //把数据库的JSON对象转成Map，构造我们的对象的这个属性
     public void setArgument(String json) {
         try {
-            this.argument = JsonUtils.setArgumentJson(json);
+            this.argument = org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils.setArgumentJson(json);
         } catch (JsonProcessingException e) {
             this.argument = new HashMap<>();
         }
@@ -80,16 +78,16 @@ public class Exchange {
     //代码内部使用方便，例如编写测试用例
 
     //再提供一组argument的get与set用来更好地获取与设置键值对
-    public Object getArgumentNOJSON(String key){
+    public Object getArgumentNOJSON(String key) {
         return argument.get(key);
     }
 
-    public void setArgumentNOJSON(String key,Object value){
-        this.argument.put(key,value);
+    public void setArgumentNOJSON(String key, Object value) {
+        this.argument.put(key, value);
     }
 
     //获取到argument的MAP本身
-    public Map<String,Object> getArgumentMap(){
+    public Map<String, Object> getArgumentMap() {
         return this.argument;
     }
 }
@@ -122,7 +120,7 @@ public enum ExchangeTtype {
 }
 ```
 
-#### 3. 消息队列的队列主体类  
+#### 3. 消息队列的队列主体类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
@@ -132,7 +130,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.zlh.messagequeuedemo.common.utils.JsonUtils;
+import org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -159,12 +157,12 @@ public class MSGQueue {
     //TODO 这个也是我们后续自己实现
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    private Map<String,Object> arguments = new HashMap<>();
+    private Map<String, Object> arguments = new HashMap<>();
 
     // 数据库中使用
 
     //从数据库的JSON字符串中取对象，并赋值到我们的arguments属性
-    public void setArguments(String argumentsJson){
+    public void setArguments(String argumentsJson) {
         try {
             this.arguments = JsonUtils.setArgumentJson(argumentsJson);
         } catch (JsonProcessingException e) {
@@ -182,11 +180,11 @@ public class MSGQueue {
     }
 
     //代码中使用
-    public void setArgumentsNOJSON(String key,Object value){
-        this.arguments.put(key,value);
+    public void setArgumentsNOJSON(String key, Object value) {
+        this.arguments.put(key, value);
     }
 
-    public Map<String,Object> getArgumentsNOJSON(){
+    public Map<String, Object> getArgumentsNOJSON() {
         return this.arguments;
     }
 }
@@ -659,7 +657,7 @@ mybatis:
     map-underscore-to-camel-case: true
 ```
 
-### 8. 数据库管理类测试模块  
+### 8. 数据库管理类测试模块
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -672,6 +670,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.zlh.messagequeuedemo.MessageQueueDemoApplication;
+import org.zlh.messagequeuedemo.common.constant.ConstantForDateBaseTest;
 import org.zlh.messagequeuedemo.common.constant.ConstantForTest;
 import org.zlh.messagequeuedemo.mqserver.core.Bingding;
 import org.zlh.messagequeuedemo.mqserver.core.Exchange;
@@ -717,20 +716,20 @@ class DataBaseManagerTest {
         newExchange.setIsDelete(false);
         newExchange.setIsPermanent(true);
         // 使用常量替换魔法字符串
-        newExchange.setArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_1, ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1);
-        newExchange.setArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_2, ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2);
+        newExchange.setArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_1, ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1);
+        newExchange.setArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_2, ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2);
         return newExchange;
     }
 
     //创建队列
-    private MSGQueue createQueue(String queueName){
+    private MSGQueue createQueue(String queueName) {
         MSGQueue newQueue = new MSGQueue();
         newQueue.setName(queueName);
         newQueue.setIsDelete(false);
         newQueue.setIsPermanent(true);
         newQueue.setExclusivel(false);
-        newQueue.setArgumentsNOJSON(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_1,ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_1);
-        newQueue.setArgumentsNOJSON(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_2,ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_2);
+        newQueue.setArgumentsNOJSON(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_1, ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_1);
+        newQueue.setArgumentsNOJSON(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_2, ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_2);
         return newQueue;
     }
 
@@ -769,23 +768,23 @@ class DataBaseManagerTest {
     // 交换机插入
     @Test
     public void testInsertExchange() {
-        Exchange newExchange = createExchange(ConstantForTest.TEST_INSERT_EXCHANGE_NAME_1);
+        Exchange newExchange = createExchange(ConstantForDateBaseTest.TEST_INSERT_EXCHANGE_NAME_1);
         dataBaseManager.insertExchange(newExchange);
         List<Exchange> exchangeList = dataBaseManager.queryAllExchange();
         //插入后应有 2 条（默认 + 新插入）
         Assertions.assertEquals(2, exchangeList.size());
         Exchange newInsertExchange = exchangeList.get(1);
         // 校验各字段
-        Assertions.assertEquals(ConstantForTest.TEST_INSERT_EXCHANGE_NAME_1, newInsertExchange.getName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_INSERT_EXCHANGE_NAME_1, newInsertExchange.getName());
         Assertions.assertEquals(ExchangeTtype.FINOUT, newInsertExchange.getExchangeType());
         Assertions.assertFalse(newInsertExchange.getIsDelete());
         Assertions.assertTrue(newInsertExchange.getIsPermanent());
         // 校验argument参数
         Assertions.assertEquals(2, newInsertExchange.getArgumentMap().size());
-        Assertions.assertEquals(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1,
-                newInsertExchange.getArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_1));
-        Assertions.assertEquals(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2,
-                newInsertExchange.getArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_2));
+        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1,
+                newInsertExchange.getArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_1));
+        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2,
+                newInsertExchange.getArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_2));
         //查询不存在的 key 应该返回 null，不能抛异常
         Assertions.assertNull(newInsertExchange.getArgumentNOJSON("nonExistKey"));
         //对象本身不为 null
@@ -796,14 +795,14 @@ class DataBaseManagerTest {
     // 交换机删除
     @Test
     public void testDeleteExchange() {
-        Exchange newExchange = createExchange(ConstantForTest.TEST_DELETE_EXCHANGE_NAME_1);
+        Exchange newExchange = createExchange(ConstantForDateBaseTest.TEST_DELETE_EXCHANGE_NAME_1);
         dataBaseManager.insertExchange(newExchange);
         // 插入后验证存在
         List<Exchange> exchangeList = dataBaseManager.queryAllExchange();
         Assertions.assertEquals(2, exchangeList.size());
-        Assertions.assertEquals(ConstantForTest.TEST_DELETE_EXCHANGE_NAME_1, exchangeList.get(1).getName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_DELETE_EXCHANGE_NAME_1, exchangeList.get(1).getName());
         // 执行删除
-        dataBaseManager.deleteExchange(ConstantForTest.TEST_DELETE_EXCHANGE_NAME_1);
+        dataBaseManager.deleteExchange(ConstantForDateBaseTest.TEST_DELETE_EXCHANGE_NAME_1);
         // 删除后验证：只剩默认交换机
         exchangeList = dataBaseManager.queryAllExchange();
         Assertions.assertEquals(1, exchangeList.size());
@@ -819,23 +818,23 @@ class DataBaseManagerTest {
     // 队列插入
     @Test
     public void testInsertQueue() {
-        MSGQueue newInsertQueue = createQueue(ConstantForTest.TEST_INSERT_QUEUE_NAME_1);
+        MSGQueue newInsertQueue = createQueue(ConstantForDateBaseTest.TEST_INSERT_QUEUE_NAME_1);
         dataBaseManager.insertQueue(newInsertQueue);
         List<MSGQueue> msgQueueList = dataBaseManager.queryAllQueue();
         //注意我们最开始没有任何队列数据，我们插入后只有一条队列数据，这个和之前的Exchange交换机不一样
         Assertions.assertEquals(1, msgQueueList.size());
         MSGQueue newQueue = msgQueueList.get(0);
         //校验各字段
-        Assertions.assertEquals(ConstantForTest.TEST_INSERT_QUEUE_NAME_1, newQueue.getName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_INSERT_QUEUE_NAME_1, newQueue.getName());
         Assertions.assertTrue(newQueue.getIsPermanent());
         Assertions.assertFalse(newQueue.getIsDelete());
         Assertions.assertFalse(newQueue.getExclusivel());
         //校验 argument 的两个 MAP 参数
         Assertions.assertEquals(2, newQueue.getArgumentsNOJSON().size());
-        Assertions.assertEquals(ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_1,
-                newQueue.getArgumentsNOJSON().get(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_1));
-        Assertions.assertEquals(ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_2,
-                newQueue.getArgumentsNOJSON().get(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_2));
+        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_1,
+                newQueue.getArgumentsNOJSON().get(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_1));
+        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_2,
+                newQueue.getArgumentsNOJSON().get(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_2));
         //对象本身不为 null
         Assertions.assertNotNull(newQueue);
         //查询不存在的 key 返回 null
@@ -846,14 +845,14 @@ class DataBaseManagerTest {
     //队列删除
     @Test
     public void testDeleteQueue() {
-        MSGQueue newQueue = createQueue(ConstantForTest.TEST_DELETE_QUEUE_NAME_1);
+        MSGQueue newQueue = createQueue(ConstantForDateBaseTest.TEST_DELETE_QUEUE_NAME_1);
         dataBaseManager.insertQueue(newQueue);
         //插入后验证存在
         List<MSGQueue> msgQueueList = dataBaseManager.queryAllQueue();
         Assertions.assertEquals(1, msgQueueList.size());
-        Assertions.assertEquals(ConstantForTest.TEST_DELETE_QUEUE_NAME_1, msgQueueList.get(0).getName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_DELETE_QUEUE_NAME_1, msgQueueList.get(0).getName());
         //执行删除
-        dataBaseManager.deleteQueue(ConstantForTest.TEST_DELETE_QUEUE_NAME_1);
+        dataBaseManager.deleteQueue(ConstantForDateBaseTest.TEST_DELETE_QUEUE_NAME_1);
         //删除后验证：列表应为空
         msgQueueList = dataBaseManager.queryAllQueue();
         Assertions.assertEquals(0, msgQueueList.size());
@@ -869,17 +868,17 @@ class DataBaseManagerTest {
     @Test
     public void testInsertBingding() {
         //绑定需要依赖已存在的交换机与队列，先创建它们
-        Exchange exchange = createExchange(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME);
-        MSGQueue queue1 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_1);
-        MSGQueue queue2 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_2);
+        Exchange exchange = createExchange(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME);
+        MSGQueue queue1 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1);
+        MSGQueue queue2 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2);
         dataBaseManager.insertExchange(exchange);
         dataBaseManager.insertQueue(queue1);
         dataBaseManager.insertQueue(queue2);
         //创建两条绑定关系：同一个交换机绑定两个不同队列
-        Bingding bingding1 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForTest.TEST_BINGDING_BINDING_KEY);
-        Bingding bingding2 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding1 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding2 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
         dataBaseManager.insertBingding(bingding1);
         dataBaseManager.insertBingding(bingding2);
         //查询验证
@@ -887,9 +886,9 @@ class DataBaseManagerTest {
         Assertions.assertEquals(2, bingdingList.size());
         //校验第一条绑定的具体字段
         Bingding result1 = bingdingList.get(0);
-        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME, result1.getExchangeName());
-        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_QUEUE_NAME_1, result1.getQueueName());
-        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_BINDING_KEY, result1.getBindingKey());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME, result1.getExchangeName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1, result1.getQueueName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY, result1.getBindingKey());
         //对象本身不为 null
         Assertions.assertNotNull(result1);
         log.info("绑定插入校验成功！");
@@ -899,17 +898,17 @@ class DataBaseManagerTest {
     @Test
     public void testDeleteBingding() {
         //同上，先建好交换机和队列
-        Exchange exchange = createExchange(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME);
-        MSGQueue queue1 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_1);
-        MSGQueue queue2 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_2);
+        Exchange exchange = createExchange(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME);
+        MSGQueue queue1 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1);
+        MSGQueue queue2 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2);
         dataBaseManager.insertExchange(exchange);
         dataBaseManager.insertQueue(queue1);
         dataBaseManager.insertQueue(queue2);
         //插入两条绑定关系
-        Bingding bingding1 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForTest.TEST_BINGDING_BINDING_KEY);
-        Bingding bingding2 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding1 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding2 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
         dataBaseManager.insertBingding(bingding1);
         dataBaseManager.insertBingding(bingding2);
         //删除第一条绑定
@@ -917,7 +916,7 @@ class DataBaseManagerTest {
         //验证只剩一条，且是 queue2 的那条
         List<Bingding> bingdingList = dataBaseManager.queryAllBingding();
         Assertions.assertEquals(1, bingdingList.size());
-        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_QUEUE_NAME_2, bingdingList.get(0).getQueueName());
+        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2, bingdingList.get(0).getQueueName());
         //再删除第二条
         dataBaseManager.deleteBingding(bingding2);
         bingdingList = dataBaseManager.queryAllBingding();

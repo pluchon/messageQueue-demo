@@ -1,4 +1,4 @@
-package org.zlh.messagequeuedemo.common.utils;
+package org.zlh.messagequeuedemo.common.utils.serializable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;

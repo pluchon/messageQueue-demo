@@ -5,7 +5,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.util.StringUtils;
 
-import java.beans.Transient;
 import java.io.Serializable;
 import java.util.UUID;
 
@@ -24,7 +23,7 @@ public class Message implements Serializable {
     // 我们的元数据，即属性，new是避免我们的空指针
     private BasicProperties basicProperties = new BasicProperties();
     // 正文内容，可以传输图片等等;
-    private Byte[] body;
+    private byte[] body;
 
     //辅助属性
     //后续我们的Message可能会进行持久化存入文件中（性能好且我们无需频繁的进行增删改查，而且我们会一个文件中会存储很多的消息）
@@ -32,12 +31,12 @@ public class Message implements Serializable {
     //offsetBeg表示该消息开头距离文件开头距离文件开头位置偏移量，字节
     //offsetEnd表示消息结尾距离文件开头距离文件开头位置的偏移量，字节
     //加入transient表示我们不被序列化
-    private transient Long offsetBeg = 0L;
-    private transient Long offsetEnd = 0L;
+    private transient long offsetBeg = 0L;
+    private transient long offsetEnd = 0L;
     // isValid表示我们的消息在文件中是否是有效的消息（逻辑删除），避免我们直接删除文件内容导致后续其他消息内容的移位
     // 0x1 -> 有效，0x0 -> 无效
     // 为什么使用Byte呢，因为我们要在文件中表示，使用Byte进行统一表示比较好
-    private Byte isVaild = 0x1;
+    private byte isVaild = 0x1;
 
     //提供快速获取消息属性的方法，这种模式被称为委派模式
     public String getMessageId() {
@@ -56,10 +55,18 @@ public class Message implements Serializable {
         this.basicProperties.setRoutingKey(routingKey);
     }
 
+    public void setDeliverMode(int isdeliverMode){
+        this.basicProperties.setDeliverMode(isdeliverMode);
+    }
+
+    public int getDeliverMode(){
+        return basicProperties.getDeliverMode();
+    }
+
     // 创建一个工厂方法，让工厂方法帮我们封装创建Message对象过程，最终会自动生成一个唯一的MessageId
     // 这样我们就可以避免说构造方法创建的内部细节不详造成的误会
     // 万一我们的routingkey与BasicProperties里的routingkey冲突了，我们以我们传入的routing为主
-    public static Message messageCreateWithIDFactory(String routingKey,BasicProperties basicProperties,Byte[] body){
+    public static Message messageCreateWithIDFactory(String routingKey, BasicProperties basicProperties, byte[] body){
         Message messageInfo = new Message();
         // 校验逻辑
         if(basicProperties != null){

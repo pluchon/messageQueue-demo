@@ -5,8 +5,8 @@ package org.zlh.messagequeuedemo.common.constant;
  * @create 2026-03-26-10:24
  * 作者代码水平一般，难免难看，请见谅
  */
-//常量类，定义一些常量
-public class ConstantForTest {
+//常量类，定义一些常量，专门针对于数据库管理
+public class ConstantForDateBaseTest {
     /*
     交换机模块
      */

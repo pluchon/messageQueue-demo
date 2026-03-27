@@ -21,6 +21,6 @@ public class BasicProperties implements Serializable {
     //deliverMode表示我们消息是否要进行持久化
     // 1->不，2->持久化
     // 不使用枚举类，因为我们的rabbitmq也是这么设计的
-    private Integer deliverMode;
+    private int deliverMode;
     // TODO 针对我们的rabbitmq来说，还是有很多别的属性的，我们可以留作我们后续进行扩展
 }

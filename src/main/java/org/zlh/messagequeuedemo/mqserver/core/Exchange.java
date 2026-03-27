@@ -1,13 +1,11 @@
 package org.zlh.messagequeuedemo.mqserver.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.zlh.messagequeuedemo.common.utils.JsonUtils;
+import org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils;
 
 import java.util.HashMap;
 import java.util.Map;
