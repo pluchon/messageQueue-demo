@@ -15,16 +15,18 @@
 
 > 注意，我们每个类方法以及属性上都有我们对应的注释，我们这里就不重复了  
 
-#### 1. 交换机类
-
+#### 1. 交换机类  
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import org.zlh.messagequeuedemo.common.utils.JsonUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,7 +53,7 @@ public class Exchange {
     // 告诉DATA注解这个参数无需自动生成get与set，让我们来自己写
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    private Map<String, Object> argument = new HashMap<>();
+    private Map<String,Object> argument = new HashMap<>();
 
     //注意我们不能重写我们getter和setter方法，因为他们要求的数据返回值一致
 
@@ -60,7 +62,7 @@ public class Exchange {
     //把当前的argument内容转成JSON字符串
     public String getArgument() {
         try {
-            return org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils.getArgumentJson(this.argument);
+            return JsonUtils.getArgumentJson(this.argument);
         } catch (JsonProcessingException e) {
             return "{}";
         }
@@ -69,7 +71,7 @@ public class Exchange {
     //把数据库的JSON对象转成Map，构造我们的对象的这个属性
     public void setArgument(String json) {
         try {
-            this.argument = org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils.setArgumentJson(json);
+            this.argument = JsonUtils.setArgumentJson(json);
         } catch (JsonProcessingException e) {
             this.argument = new HashMap<>();
         }
@@ -78,16 +80,16 @@ public class Exchange {
     //代码内部使用方便，例如编写测试用例
 
     //再提供一组argument的get与set用来更好地获取与设置键值对
-    public Object getArgumentNOJSON(String key) {
+    public Object getArgumentNOJSON(String key){
         return argument.get(key);
     }
 
-    public void setArgumentNOJSON(String key, Object value) {
-        this.argument.put(key, value);
+    public void setArgumentNOJSON(String key,Object value){
+        this.argument.put(key,value);
     }
 
     //获取到argument的MAP本身
-    public Map<String, Object> getArgumentMap() {
+    public Map<String,Object> getArgumentMap(){
         return this.argument;
     }
 }
@@ -120,7 +122,7 @@ public enum ExchangeTtype {
 }
 ```
 
-#### 3. 消息队列的队列主体类
+#### 3. 消息队列的队列主体类  
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
@@ -130,7 +132,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils;
+import org.zlh.messagequeuedemo.common.utils.JsonUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -157,12 +159,12 @@ public class MSGQueue {
     //TODO 这个也是我们后续自己实现
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
-    private Map<String, Object> arguments = new HashMap<>();
+    private Map<String,Object> arguments = new HashMap<>();
 
     // 数据库中使用
 
     //从数据库的JSON字符串中取对象，并赋值到我们的arguments属性
-    public void setArguments(String argumentsJson) {
+    public void setArguments(String argumentsJson){
         try {
             this.arguments = JsonUtils.setArgumentJson(argumentsJson);
         } catch (JsonProcessingException e) {
@@ -180,11 +182,11 @@ public class MSGQueue {
     }
 
     //代码中使用
-    public void setArgumentsNOJSON(String key, Object value) {
-        this.arguments.put(key, value);
+    public void setArgumentsNOJSON(String key,Object value){
+        this.arguments.put(key,value);
     }
 
-    public Map<String, Object> getArgumentsNOJSON() {
+    public Map<String,Object> getArgumentsNOJSON(){
         return this.arguments;
     }
 }
@@ -657,7 +659,7 @@ mybatis:
     map-underscore-to-camel-case: true
 ```
 
-### 8. 数据库管理类测试模块
+### 8. 数据库管理类测试模块  
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -670,7 +672,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.zlh.messagequeuedemo.MessageQueueDemoApplication;
-import org.zlh.messagequeuedemo.common.constant.ConstantForDateBaseTest;
 import org.zlh.messagequeuedemo.common.constant.ConstantForTest;
 import org.zlh.messagequeuedemo.mqserver.core.Bingding;
 import org.zlh.messagequeuedemo.mqserver.core.Exchange;
@@ -716,20 +717,20 @@ class DataBaseManagerTest {
         newExchange.setIsDelete(false);
         newExchange.setIsPermanent(true);
         // 使用常量替换魔法字符串
-        newExchange.setArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_1, ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1);
-        newExchange.setArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_2, ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2);
+        newExchange.setArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_1, ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1);
+        newExchange.setArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_2, ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2);
         return newExchange;
     }
 
     //创建队列
-    private MSGQueue createQueue(String queueName) {
+    private MSGQueue createQueue(String queueName){
         MSGQueue newQueue = new MSGQueue();
         newQueue.setName(queueName);
         newQueue.setIsDelete(false);
         newQueue.setIsPermanent(true);
         newQueue.setExclusivel(false);
-        newQueue.setArgumentsNOJSON(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_1, ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_1);
-        newQueue.setArgumentsNOJSON(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_2, ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_2);
+        newQueue.setArgumentsNOJSON(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_1,ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_1);
+        newQueue.setArgumentsNOJSON(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_2,ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_2);
         return newQueue;
     }
 
@@ -768,23 +769,23 @@ class DataBaseManagerTest {
     // 交换机插入
     @Test
     public void testInsertExchange() {
-        Exchange newExchange = createExchange(ConstantForDateBaseTest.TEST_INSERT_EXCHANGE_NAME_1);
+        Exchange newExchange = createExchange(ConstantForTest.TEST_INSERT_EXCHANGE_NAME_1);
         dataBaseManager.insertExchange(newExchange);
         List<Exchange> exchangeList = dataBaseManager.queryAllExchange();
         //插入后应有 2 条（默认 + 新插入）
         Assertions.assertEquals(2, exchangeList.size());
         Exchange newInsertExchange = exchangeList.get(1);
         // 校验各字段
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_INSERT_EXCHANGE_NAME_1, newInsertExchange.getName());
+        Assertions.assertEquals(ConstantForTest.TEST_INSERT_EXCHANGE_NAME_1, newInsertExchange.getName());
         Assertions.assertEquals(ExchangeTtype.FINOUT, newInsertExchange.getExchangeType());
         Assertions.assertFalse(newInsertExchange.getIsDelete());
         Assertions.assertTrue(newInsertExchange.getIsPermanent());
         // 校验argument参数
         Assertions.assertEquals(2, newInsertExchange.getArgumentMap().size());
-        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1,
-                newInsertExchange.getArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_1));
-        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2,
-                newInsertExchange.getArgumentNOJSON(ConstantForDateBaseTest.CREATE_EXCHANGE_ARGUMENT_KEY_2));
+        Assertions.assertEquals(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_1,
+                newInsertExchange.getArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_1));
+        Assertions.assertEquals(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_VALUE_2,
+                newInsertExchange.getArgumentNOJSON(ConstantForTest.CREATE_EXCHANGE_ARGUMENT_KEY_2));
         //查询不存在的 key 应该返回 null，不能抛异常
         Assertions.assertNull(newInsertExchange.getArgumentNOJSON("nonExistKey"));
         //对象本身不为 null
@@ -795,14 +796,14 @@ class DataBaseManagerTest {
     // 交换机删除
     @Test
     public void testDeleteExchange() {
-        Exchange newExchange = createExchange(ConstantForDateBaseTest.TEST_DELETE_EXCHANGE_NAME_1);
+        Exchange newExchange = createExchange(ConstantForTest.TEST_DELETE_EXCHANGE_NAME_1);
         dataBaseManager.insertExchange(newExchange);
         // 插入后验证存在
         List<Exchange> exchangeList = dataBaseManager.queryAllExchange();
         Assertions.assertEquals(2, exchangeList.size());
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_DELETE_EXCHANGE_NAME_1, exchangeList.get(1).getName());
+        Assertions.assertEquals(ConstantForTest.TEST_DELETE_EXCHANGE_NAME_1, exchangeList.get(1).getName());
         // 执行删除
-        dataBaseManager.deleteExchange(ConstantForDateBaseTest.TEST_DELETE_EXCHANGE_NAME_1);
+        dataBaseManager.deleteExchange(ConstantForTest.TEST_DELETE_EXCHANGE_NAME_1);
         // 删除后验证：只剩默认交换机
         exchangeList = dataBaseManager.queryAllExchange();
         Assertions.assertEquals(1, exchangeList.size());
@@ -818,23 +819,23 @@ class DataBaseManagerTest {
     // 队列插入
     @Test
     public void testInsertQueue() {
-        MSGQueue newInsertQueue = createQueue(ConstantForDateBaseTest.TEST_INSERT_QUEUE_NAME_1);
+        MSGQueue newInsertQueue = createQueue(ConstantForTest.TEST_INSERT_QUEUE_NAME_1);
         dataBaseManager.insertQueue(newInsertQueue);
         List<MSGQueue> msgQueueList = dataBaseManager.queryAllQueue();
         //注意我们最开始没有任何队列数据，我们插入后只有一条队列数据，这个和之前的Exchange交换机不一样
         Assertions.assertEquals(1, msgQueueList.size());
         MSGQueue newQueue = msgQueueList.get(0);
         //校验各字段
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_INSERT_QUEUE_NAME_1, newQueue.getName());
+        Assertions.assertEquals(ConstantForTest.TEST_INSERT_QUEUE_NAME_1, newQueue.getName());
         Assertions.assertTrue(newQueue.getIsPermanent());
         Assertions.assertFalse(newQueue.getIsDelete());
         Assertions.assertFalse(newQueue.getExclusivel());
         //校验 argument 的两个 MAP 参数
         Assertions.assertEquals(2, newQueue.getArgumentsNOJSON().size());
-        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_1,
-                newQueue.getArgumentsNOJSON().get(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_1));
-        Assertions.assertEquals(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_VALUE_2,
-                newQueue.getArgumentsNOJSON().get(ConstantForDateBaseTest.CREATE_QUEUE_ARGUMENT_KEY_2));
+        Assertions.assertEquals(ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_1,
+                newQueue.getArgumentsNOJSON().get(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_1));
+        Assertions.assertEquals(ConstantForTest.CREATE_QUEUE_ARGUMENT_VALUE_2,
+                newQueue.getArgumentsNOJSON().get(ConstantForTest.CREATE_QUEUE_ARGUMENT_KEY_2));
         //对象本身不为 null
         Assertions.assertNotNull(newQueue);
         //查询不存在的 key 返回 null
@@ -845,14 +846,14 @@ class DataBaseManagerTest {
     //队列删除
     @Test
     public void testDeleteQueue() {
-        MSGQueue newQueue = createQueue(ConstantForDateBaseTest.TEST_DELETE_QUEUE_NAME_1);
+        MSGQueue newQueue = createQueue(ConstantForTest.TEST_DELETE_QUEUE_NAME_1);
         dataBaseManager.insertQueue(newQueue);
         //插入后验证存在
         List<MSGQueue> msgQueueList = dataBaseManager.queryAllQueue();
         Assertions.assertEquals(1, msgQueueList.size());
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_DELETE_QUEUE_NAME_1, msgQueueList.get(0).getName());
+        Assertions.assertEquals(ConstantForTest.TEST_DELETE_QUEUE_NAME_1, msgQueueList.get(0).getName());
         //执行删除
-        dataBaseManager.deleteQueue(ConstantForDateBaseTest.TEST_DELETE_QUEUE_NAME_1);
+        dataBaseManager.deleteQueue(ConstantForTest.TEST_DELETE_QUEUE_NAME_1);
         //删除后验证：列表应为空
         msgQueueList = dataBaseManager.queryAllQueue();
         Assertions.assertEquals(0, msgQueueList.size());
@@ -868,17 +869,17 @@ class DataBaseManagerTest {
     @Test
     public void testInsertBingding() {
         //绑定需要依赖已存在的交换机与队列，先创建它们
-        Exchange exchange = createExchange(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME);
-        MSGQueue queue1 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1);
-        MSGQueue queue2 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2);
+        Exchange exchange = createExchange(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME);
+        MSGQueue queue1 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_1);
+        MSGQueue queue2 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_2);
         dataBaseManager.insertExchange(exchange);
         dataBaseManager.insertQueue(queue1);
         dataBaseManager.insertQueue(queue2);
         //创建两条绑定关系：同一个交换机绑定两个不同队列
-        Bingding bingding1 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
-        Bingding bingding2 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding1 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding2 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForTest.TEST_BINGDING_BINDING_KEY);
         dataBaseManager.insertBingding(bingding1);
         dataBaseManager.insertBingding(bingding2);
         //查询验证
@@ -886,9 +887,9 @@ class DataBaseManagerTest {
         Assertions.assertEquals(2, bingdingList.size());
         //校验第一条绑定的具体字段
         Bingding result1 = bingdingList.get(0);
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME, result1.getExchangeName());
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1, result1.getQueueName());
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY, result1.getBindingKey());
+        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME, result1.getExchangeName());
+        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_QUEUE_NAME_1, result1.getQueueName());
+        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_BINDING_KEY, result1.getBindingKey());
         //对象本身不为 null
         Assertions.assertNotNull(result1);
         log.info("绑定插入校验成功！");
@@ -898,17 +899,17 @@ class DataBaseManagerTest {
     @Test
     public void testDeleteBingding() {
         //同上，先建好交换机和队列
-        Exchange exchange = createExchange(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME);
-        MSGQueue queue1 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1);
-        MSGQueue queue2 = createQueue(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2);
+        Exchange exchange = createExchange(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME);
+        MSGQueue queue1 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_1);
+        MSGQueue queue2 = createQueue(ConstantForTest.TEST_BINGDING_QUEUE_NAME_2);
         dataBaseManager.insertExchange(exchange);
         dataBaseManager.insertQueue(queue1);
         dataBaseManager.insertQueue(queue2);
         //插入两条绑定关系
-        Bingding bingding1 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
-        Bingding bingding2 = createBingding(ConstantForDateBaseTest.TEST_BINGDING_EXCHANGE_NAME,
-                ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForDateBaseTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding1 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForTest.TEST_BINGDING_QUEUE_NAME_1, ConstantForTest.TEST_BINGDING_BINDING_KEY);
+        Bingding bingding2 = createBingding(ConstantForTest.TEST_BINGDING_EXCHANGE_NAME,
+                ConstantForTest.TEST_BINGDING_QUEUE_NAME_2, ConstantForTest.TEST_BINGDING_BINDING_KEY);
         dataBaseManager.insertBingding(bingding1);
         dataBaseManager.insertBingding(bingding2);
         //删除第一条绑定
@@ -916,7 +917,7 @@ class DataBaseManagerTest {
         //验证只剩一条，且是 queue2 的那条
         List<Bingding> bingdingList = dataBaseManager.queryAllBingding();
         Assertions.assertEquals(1, bingdingList.size());
-        Assertions.assertEquals(ConstantForDateBaseTest.TEST_BINGDING_QUEUE_NAME_2, bingdingList.get(0).getQueueName());
+        Assertions.assertEquals(ConstantForTest.TEST_BINGDING_QUEUE_NAME_2, bingdingList.get(0).getQueueName());
         //再删除第二条
         dataBaseManager.deleteBingding(bingding2);
         bingdingList = dataBaseManager.queryAllBingding();
@@ -932,3 +933,1637 @@ class DataBaseManagerTest {
 ```
 
 ## 二、DAY02  
+
+> 完善了消息持久化`MessageFileManager`类，主要是文件IO流  
+
+```java
+    //把新的消息放到对应的队列文件中
+    public void sendMessage(MSGQueue queue, Message message) throws MQException, IOException {
+        //队列对应的名称
+        String queueName = queue.getName();
+        //检查参数合法性（存在性问题）
+        if(!checkFileExists(queueName)){
+            //文件不存在，当前写入操作无意义
+            throw new MQException("[MessageFileManager] 队列对应的文件不存在："+queue.getName());
+        }
+        //对象序列化（前提是实现了序列化接口）
+        byte[] messageBinary = BinaryUtilsForJavaUtils.toBinary(message);
+        //针对线程安全，我们队列进行加锁，不同线程写同一个队列要阻塞等待
+        //提示警告是因为idea不确定你这个方法能否达到预期效果且有效（不同线程对同一个对象加锁，因为idea怕的是传的是不同的队列对象）
+        //但是没关系我们以后是传入我们内存里管理的queue对象
+        synchronized (queue){
+            //获取当前队列数据文件的长度，用来计算该消息的offsetBeg和offsetEnd！
+            //以便于我们把新的message数据写入到我们队列数据文件的末尾
+            //此时offsetBeg就是我们当前 文件长度+4，而我们的offsetEnd就是我们 文件长度+4+消息长度
+            //+4是我们约定的格式，用四个字节表示我们的消息长度
+            //获取文件对象
+            File file = new File(getQueueDataPath(queueName));
+            //获取长度，单位字节
+            long length = file.length();
+            //设置长度
+            message.setOffsetBeg(length+4);
+            message.setOffsetEnd(length+4+messageBinary.length);
+            //写入文件，打开文件，而且注意我们写入不是覆盖而是追加到文件内容末尾，因此多加参数true
+            try(OutputStream outputStream = new FileOutputStream(file,true)){
+                //先规定我们写入消息的offsetBrg属性和offsetEnd长度属性，占据4个字节
+                //虽然我们都write方法有一个int类型参数（4个字节），但是实际上只能每一次写入一个字节，也就是Byte参数！
+                //也可以四个字节分别取出来再逐个字节写入，使用位运算(num = 0xaabbccdd) -->num & 0xff = dd,(num >> 8) & 0xff => cc .....
+                //但是我们标准库封装了，因此我们使用Java标准库
+                try(DataOutputStream dataOutputStream = new DataOutputStream(outputStream)){
+                    //写入int四个字节，表示这个消息有多长
+                    dataOutputStream.writeInt(messageBinary.length);
+                    //写入消息本体，就是字节数组内容本体
+                    dataOutputStream.write(messageBinary);
+                }
+            }
+            //更新消息统计文件
+            Stat stat = getStat(queueName);
+            stat.totalCount += 1;
+            stat.validCount += 1;
+            //重新写入对象
+            setStat(queueName,stat);
+        }
+    }
+
+    //删除消息，软删除（不是真的删除）
+    //注意我们是随机访问文件中内容，不能使用inputStream和outputStream，因为它们都是从头或者是尾开始读
+    public void deleteMessage(MSGQueue queue,Message message) throws IOException, ClassNotFoundException {
+        //注意加锁！！
+        synchronized (queue){
+            String queueName = queue.getName();
+            //里面的seek方法是定位的鼠标光标位置，参数是文件位置和打开方式(rw->可读可写)
+            try(RandomAccessFile randomAccessFile = new RandomAccessFile(getQueueDataPath(queueName),"rw")){
+                //数组内容大小我们可以直接计算
+                byte[] messageInfoByte = new byte[(int)(message.getOffsetEnd()-message.getOffsetBeg())];
+                //让光标移动到该条消息起始位置
+                randomAccessFile.seek(message.getOffsetBeg());
+                //把messageInfo这个空间读取满，全部写入到字节数组中
+                randomAccessFile.read(messageInfoByte);
+                //二进制数据转换成对象
+                Message messageInfo = (Message) BinaryUtilsForJavaUtils.fromBinary(messageInfoByte);
+                //修改状态
+                //对于我们在内存中管理的message对象，我们刚刚修改的是文件的状态
+                //针对内存的消息设置无所谓了，因为这个参数是专门表示文件中表示的状态，后续我们马上就会从内存中进行销毁
+                messageInfo.setIsVaild((byte)0x0);
+                //写回文件，进行覆盖
+                byte[] newMessageByte = BinaryUtilsForJavaUtils.toBinary(messageInfo);
+                //往我们指定的位置写入，注意我们要再重新定义光标位置（因为我们在读写过程中我们光标位置会进行变化，因此要重新定位）
+                randomAccessFile.seek(message.getOffsetBeg());
+                randomAccessFile.write(newMessageByte);
+                //我们这通操作只有一个字节发生改变，但是非常重要
+            }
+            //更新统计文件
+            Stat stat = getStat(queueName);
+            //>0才可以减一
+            if(stat.validCount > 0){
+                stat.validCount -= 1;
+            }
+            //重新写入
+            setStat(queueName,stat);
+        }
+    }
+
+    //加载文件中所有的消息并放入内存中，这个方法在程序启动的时候进行调用
+    //使用LinkedList是为了后续进行头部删除操作
+    //我们传入queueName表示我们不进行加锁，因为我们这个方法在程序启动的时候调用，不涉及多线程的调用
+    public LinkedList<Message> queryAllMessage(String queueName) throws IOException, MQException, ClassNotFoundException {
+        LinkedList<Message> messageLinkedList = new LinkedList<>();
+        //打开文件读取数据，必须是isVaild有效才可以，按顺序读取使用流
+        try(InputStream inputStream = new FileInputStream(getQueueDataPath(queueName))) {
+            //先读四个字节获取到该消息的信息，才可以正确往后读
+            try(DataInputStream dataInputStream = new DataInputStream(inputStream)){
+                //我们需要读取多次
+                long currentOffset = 0L;
+                while(true){
+                    //读取我们的该消息的长度
+                    int messageLength = dataInputStream.readInt();
+                    //如何判断我们读取到了文件末尾？我们可以根据dataInputStream的messageLength判断(EOF异常)
+                    //按照这个长度读取消息内容
+                    byte[] buffer = new byte[messageLength];
+                    //读取指定长度内容
+                    int readLength = dataInputStream.read(buffer);
+                    //判断长度是否正确
+                    if(readLength != messageLength){
+                        //该消息有问题，或者是文件有问题，可能是格式错乱
+                        throw new MQException("[MessageFileManager] 消息或文件格式错误！"+queueName);
+                    }
+                    //转换成对象并填入我们的LinkedList
+                    Message messageInfo = (Message) BinaryUtilsForJavaUtils.fromBinary(buffer);
+                    //判定消息对象是不是无效对象，有效消息才可以放入
+                    if(messageInfo.getIsVaild() != 0x1){
+                        //offset记得要更新，因为就算是无效消息也占着位置
+                        currentOffset += messageLength+4;
+                        continue;
+                    }
+                    //填写offsetBeg和offsetEnd，也就是我们当前的光标位置（我们手动记录），我们DataInputStream不方便直接获取到文件光标位置
+                    //注意我们要+4，因为我们开始读了四个字节
+                    currentOffset += 4;
+                    messageInfo.setOffsetBeg(currentOffset);
+                    //加上消息长度
+                    currentOffset += messageLength;
+                    messageInfo.setOffsetEnd(currentOffset);
+                    //加入到LinkedList中
+                    messageLinkedList.add(messageInfo);
+                }
+            }catch (EOFException e){
+                //注意此处catch不是处理异常，而是处理文件读取到末尾的标志
+                //这个catch无需做啥特殊处理，自动读取到这里循环就会正常结束了
+                log.info("[MessageFileManager] 读取消息文件数据完成！");
+            }
+        }
+        return messageLinkedList;
+    }
+
+    //检查是否要对当前队列进行垃圾回收
+    //总消息数 > 2000,有效消息 < 50%
+    public boolean checkGC(String queueName){
+        Stat stat = getStat(queueName);
+        return stat.totalCount > 2000 && (double) stat.validCount / stat.totalCount < 0.5;
+    }
+
+    //回收后新文件所在的位置
+    private String queueNewPath(String queueName){
+        return getQueueDir(queueName)+"/queue_data_new.txt";
+    }
+
+    //GC垃圾回收，使用复制算法进行（加锁，因为是对我们文件的清洗！！）
+    public void GC(MSGQueue queue) throws MQException, IOException, ClassNotFoundException {
+        synchronized (queue){
+            String queueName = queue.getName();
+            long gcStart = System.currentTimeMillis();
+            //创建一个新文件
+            File newQueueFile = new File(queueNewPath(queueName));
+            //查看是否存在，如果存在说明上一次GC存在残留文件，也就是说该文件不该存在
+            if(newQueueFile.exists()){
+                throw new MQException("[MessageFileManager] GC发现该队列的queue_data_new.txt已经存在"+queueName);
+            }
+            //创建文件
+            boolean isOk = newQueueFile.createNewFile();
+            //查看结果
+            if(!isOk){
+                throw new MQException("[messageFileManager] 创建新队列文件'queue_data_new.txt'失败 -> "+newQueueFile.getAbsoluteFile());
+            }
+            //从旧文件中读取所有的有效消息对象，之前定义过了
+            LinkedList<Message> messageLinkedList = queryAllMessage(queueName);
+            //进行复制算法，不复用sendMessage方法了
+            try(OutputStream outputStream = new FileOutputStream(newQueueFile)){
+                try(DataOutputStream dataOutputStream = new DataOutputStream(outputStream)){
+                    for(Message messageInfo : messageLinkedList){
+                        byte[] binaryMessage = BinaryUtilsForJavaUtils.toBinary(messageInfo);
+                        //先写四个字节消息长度
+                        dataOutputStream.write(binaryMessage.length);
+                        //写入消息本体
+                        dataOutputStream.write(binaryMessage);
+                    }
+                }
+            }
+            //删除旧的文件，并把新文件重命名
+            File queueOldFile = new File(getQueueDataPath(queueName));
+            isOk = queueOldFile.delete();
+            //判断删除是否成功
+            if(!isOk){
+                throw new MQException("[MessageFileManager] 旧队列文件删除失败 -> "+queueOldFile.getAbsoluteFile());
+            }
+            //重命名我们新的队列数据文件，使用的我们的旧队列名字，便于后续业务进行展开！
+            isOk = newQueueFile.renameTo(queueOldFile);
+            if(!isOk){
+                throw new MQException("[MessageFileManager] 文件重命名失败 -> "+newQueueFile.getAbsoluteFile()+"≠"+queueOldFile.getAbsoluteFile());
+            }
+            //更新我们统计文件信息
+            Stat stat = getStat(queueName);
+            stat.totalCount = stat.validCount = messageLinkedList.size();
+            //写回文件
+            setStat(queueName,stat);
+            //GC正式结束
+            long gcEnd = System.currentTimeMillis();
+            //计算耗时
+            log.info("[MessageFileManager] GC执行完毕：{}，耗时：{}ms",queueName, gcEnd - gcStart);
+        }
+    }
+}
+```
+
+> 定义了新的常量类`ConstantForMessageFileTest`  
+
+```java
+package org.zlh.messagequeuedemo.common.constant;
+
+/**
+ * @author pluchon
+ * @create 2026-03-27-23:22
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//常量类，定义一些常量，专门针对于消息文件管理
+public class ConstantForMessageFileTest {
+    /*
+    队列模块
+     */
+    public static final String QUEUE_NAME_1 = "test_queue1";
+    public static final String QUEUE_NAME_2 = "test_queue2";
+
+    /*
+    routingKey模块
+     */
+    public static final String ROUTING_KEY_1 = "test_routing_key1";
+    public static final String ROUTING_KEY_2 = "test_routing_key2";
+
+    /*
+    消息内容模块
+     */
+    public static final String MESSAGE_CONTENT_1 = "test_message_content1";
+    public static final String MESSAGE_CONTENT_2 = "test_message_content2";
+    public static final String MESSAGE_CONTENT_3 = "test_message_content3";
+}
+```
+
+> 写了`MessageFileManagerTest`的测试类，完善了里面的方法  
+
+```java
+package org.zlh.messagequeuedemo.mqserver.datacenter;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.zlh.messagequeuedemo.common.constant.ConstantForMessageFileTest;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.MSGQueue;
+import org.zlh.messagequeuedemo.mqserver.core.Message;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+
+/**
+ * @author pluchon
+ * @create 2026-03-27-23:13
+ *         作者代码水平一般，难免难看，请见谅
+ */
+// 消息文件的单元测试类
+@Slf4j
+@SpringBootTest
+public class MessageFileManagerTest {
+    private MessageFileManager messageFileManager = new MessageFileManager();
+
+    // 每个用例执行前的准备工作，创建队列的目录
+    @BeforeEach
+    public void setUp() throws IOException {
+        // 创建出两个队列来，以备后用
+        messageFileManager.createQueue(ConstantForMessageFileTest.QUEUE_NAME_1);
+        messageFileManager.createQueue(ConstantForMessageFileTest.QUEUE_NAME_2);
+        log.info("[setUp] 创建队列目录完成：{} / {}", ConstantForMessageFileTest.QUEUE_NAME_1, ConstantForMessageFileTest.QUEUE_NAME_2);
+    }
+
+    // 每个用例执行完毕的首位工作
+    @AfterEach
+    public void tearDown() throws IOException {
+        // 把刚才创建的两个队列进行销毁
+        messageFileManager.deleteQueue(ConstantForMessageFileTest.QUEUE_NAME_1);
+        messageFileManager.deleteQueue(ConstantForMessageFileTest.QUEUE_NAME_2);
+        log.info("[tearDown] 队列目录清理完成");
+    }
+
+    // 创建文件，我们已经在setUp测试过了，我们仅需检测是否存在就好了（队列以及其附属的统计文件）
+    @Test
+    public void testCreateFile() {
+        File queueFile1 = new File("./data/" + ConstantForMessageFileTest.QUEUE_NAME_1 + "/queue_data.txt");
+        Assertions.assertTrue(queueFile1.isFile());
+        File queueFileStat1 = new File("./data/" + ConstantForMessageFileTest.QUEUE_NAME_1 + "/queue_stat.txt");
+        Assertions.assertTrue(queueFileStat1.isFile());
+        File queueFile2 = new File("./data/" + ConstantForMessageFileTest.QUEUE_NAME_2 + "/queue_data.txt");
+        Assertions.assertTrue(queueFile2.isFile());
+        File queueFileStat2 = new File("./data/" + ConstantForMessageFileTest.QUEUE_NAME_2 + "/queue_stat.txt");
+        Assertions.assertTrue(queueFileStat2.isFile());
+        log.info("[testCreateFile] 队列1数据文件路径：{}", queueFile1.getAbsolutePath());
+        log.info("[testCreateFile] 队列1统计文件路径：{}", queueFileStat1.getAbsolutePath());
+        log.info("[testCreateFile] 队列2数据文件路径：{}", queueFile2.getAbsolutePath());
+        log.info("[testCreateFile] 队列2统计文件路径：{}", queueFileStat2.getAbsolutePath());
+        //重复创建同一个队列目录，不应该抛异常
+        Assertions.assertDoesNotThrow(() -> messageFileManager.createQueue(ConstantForMessageFileTest.QUEUE_NAME_1));
+        //重复创建后文件依然存在（没有被覆盖清空）
+        Assertions.assertTrue(queueFile1.isFile());
+        log.info("[testCreateFile] 重复创建校验通过，文件校验成功！");
+    }
+
+    // 测试我们的消息统计文件
+    @Test
+    public void testReadWriteStat() {
+        MessageFileManager.Stat stat = new MessageFileManager.Stat();
+        stat.validCount = 20;
+        stat.totalCount = 100;
+        log.info("[testReadWriteStat] 写入 stat -> totalCount={}, validCount={}", stat.totalCount, stat.validCount);
+        // 因为是private方法，无法直接调用，我们使用反射！！
+        // JAVA原有的反射非常难用，因此我们引入Spring的工具类
+        // 调用的对象的实例，方法名，这个方法对应的参数
+        ReflectionTestUtils.invokeMethod(messageFileManager, "setStat", ConstantForMessageFileTest.QUEUE_NAME_1, stat);
+        // 读取我们的统计数据
+        MessageFileManager.Stat newStat = ReflectionTestUtils
+                .invokeMethod(messageFileManager, "getStat", ConstantForMessageFileTest.QUEUE_NAME_1);
+        // 和之前进行比较
+        Assertions.assertEquals(stat.totalCount, newStat.totalCount);
+        Assertions.assertEquals(stat.validCount, newStat.validCount);
+        log.info("[testReadWriteStat] 读出 stat -> totalCount={}, validCount={}", newStat.totalCount, newStat.validCount);
+        //连续写两次，以第二次写入的结果为准（覆盖写，非追加）
+        MessageFileManager.Stat stat2 = new MessageFileManager.Stat();
+        stat2.validCount = 5;
+        stat2.totalCount = 50;
+        ReflectionTestUtils.invokeMethod(messageFileManager, "setStat", ConstantForMessageFileTest.QUEUE_NAME_1, stat2);
+        MessageFileManager.Stat newStat2 = ReflectionTestUtils
+                .invokeMethod(messageFileManager, "getStat", ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(50, newStat2.totalCount);
+        Assertions.assertEquals(5, newStat2.validCount);
+        log.info("[testReadWriteStat] 覆盖写校验通过：totalCount={}, validCount={}", newStat2.totalCount, newStat2.validCount);
+        log.info("[testReadWriteStat] 统计文件读写校验成功！");
+    }
+
+    // 构建队列
+    private MSGQueue createQueue(String queueName) {
+        MSGQueue msgQueue = new MSGQueue();
+        msgQueue.setName(queueName);
+        msgQueue.setIsPermanent(true);
+        msgQueue.setIsDelete(false);
+        msgQueue.setExclusivel(false);
+        return msgQueue;
+    }
+
+    // 构建消息
+    private Message createMessage(String content) {
+        // 调用工厂方法
+        return Message.messageCreateWithIDFactory(ConstantForMessageFileTest.ROUTING_KEY_1, null, content.getBytes());
+    }
+
+    // 测试发送消息
+    @Test
+    public void testSendMessage() throws MQException, IOException, ClassNotFoundException {
+        // 构造消息与队列
+        Message message = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_1);
+        // 创建队列名要和我们之前创建的一致，因为要保证我们的对应目录已经文件都存在
+        MSGQueue queue = createQueue(ConstantForMessageFileTest.QUEUE_NAME_1);
+        log.info("[testSendMessage] 发送消息 -> messageId={}, routingKey={}, body={}",
+                message.getMessageId(), message.getRoutingKey(), new String(message.getBody()));
+        // 发送消息
+        messageFileManager.sendMessage(queue, message);
+        // 检查统计文件
+        MessageFileManager.Stat stat = ReflectionTestUtils.invokeMethod(messageFileManager, "getStat",
+                ConstantForMessageFileTest.QUEUE_NAME_1);
+        // 验证结果
+        Assertions.assertEquals(1, stat.validCount);
+        Assertions.assertEquals(1, stat.totalCount);
+        log.info("[testSendMessage] 统计文件校验通过：totalCount={}, validCount={}", stat.totalCount, stat.validCount);
+        // 检查消息数据文件
+        LinkedList<Message> messageLinkedList = messageFileManager
+                .queryAllMessage(ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(1, messageLinkedList.size());
+        Assertions.assertEquals(message.getMessageId(), messageLinkedList.get(0).getMessageId());
+        Assertions.assertEquals(message.getRoutingKey(), messageLinkedList.get(0).getRoutingKey());
+        Assertions.assertEquals(message.getDeliverMode(), messageLinkedList.get(0).getDeliverMode());
+        // 注意不能直接使用assertEquals，因为我们比较的是数组
+        Assertions.assertArrayEquals(message.getBody(), messageLinkedList.get(0).getBody());
+        log.info("[testSendMessage] 读回消息校验通过 -> messageId={}, body={}",
+                messageLinkedList.get(0).getMessageId(), new String(messageLinkedList.get(0).getBody()));
+        //往不存在的队列发送消息，应该抛出 MQException
+        MSGQueue nonExistQueue = createQueue("nonExistQueue");
+        Assertions.assertThrows(MQException.class, () -> messageFileManager.sendMessage(nonExistQueue, message));
+        log.info("[testSendMessage] 边界校验通过：往不存在队列发消息抛出 MQException");
+        log.info("[testSendMessage] 发送消息校验成功！");
+    }
+
+    // 测试加载所有消息，虽然之前测试过了，但是为了测试，我们这里多搞几个消息来测试
+    // 我们插入100条消息，读取后看看是不是和我们创建的100条消息对应
+    @Test
+    public void testQueryAllMessage() throws MQException, IOException, ClassNotFoundException {
+        MSGQueue queue = createQueue(ConstantForMessageFileTest.QUEUE_NAME_1);
+        List<Message> expectedMessageList = new LinkedList<>();
+        for (int i = 0; i < 100; i++) {
+            Message messageInfo = null;
+            if (i % 3 == 0) {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_1 + i);
+            } else if (i % 3 == 1) {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_2 + i);
+            } else {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_3 + i);
+            }
+            messageFileManager.sendMessage(queue, messageInfo);
+            expectedMessageList.add(messageInfo);
+        }
+        log.info("[testQueryAllMessage] 已写入 100 条消息");
+        //读取所有的消息
+        LinkedList<Message> messageLinkedList = messageFileManager.queryAllMessage(ConstantForMessageFileTest.QUEUE_NAME_1);
+        //先校验总数量
+        Assertions.assertEquals(expectedMessageList.size(), messageLinkedList.size());
+        log.info("[testQueryAllMessage] 总数量校验通过：{} 条", messageLinkedList.size());
+        //检查统计文件和实际数据的总数是否匹配
+        MessageFileManager.Stat stat = ReflectionTestUtils.
+                invokeMethod(messageFileManager, "getStat", ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(100, stat.totalCount);
+        Assertions.assertEquals(100, stat.validCount);
+        log.info("[testQueryAllMessage] 统计文件校验通过：totalCount={}, validCount={}", stat.totalCount, stat.validCount);
+        //保证每一个消息一致性
+        for (int i = 0; i < expectedMessageList.size(); i++) {
+            Message expectedMessage = expectedMessageList.get(i);
+            Message message = messageLinkedList.get(i);
+            //对比各字段，和testSendMessage保持一致
+            Assertions.assertEquals(expectedMessage.getMessageId(), message.getMessageId());
+            Assertions.assertEquals(expectedMessage.getRoutingKey(), message.getRoutingKey());
+            Assertions.assertEquals(expectedMessage.getDeliverMode(), message.getDeliverMode());
+            //body是字节数组，不能直接用assertEquals
+            Assertions.assertArrayEquals(expectedMessage.getBody(), message.getBody());
+            if (i % 3 == 0) {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_1 + i).getBytes(), message.getBody());
+            } else if (i % 3 == 1) {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_2 + i).getBytes(), message.getBody());
+            } else {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_3 + i).getBytes(), message.getBody());
+            }
+        }
+        log.info("[testQueryAllMessage] 逐条消息内容校验通过，共 {} 条", expectedMessageList.size());
+        //队列2没有写入任何消息，读取结果应该是空列表，而不是 null
+        LinkedList<Message> emptyList = messageFileManager.queryAllMessage(ConstantForMessageFileTest.QUEUE_NAME_2);
+        Assertions.assertNotNull(emptyList);
+        Assertions.assertEquals(0, emptyList.size());
+        log.info("[testQueryAllMessage] 边界校验通过：空队列读取返回空列表，非 null");
+        log.info("[testQueryAllMessage] 所有消息读取校验成功！");
+    }
+
+    //删除消息测试
+    //创建一个队列，写入10个消息，删除其中几个，再读取所有消息，看是否符合预期
+    @Test
+    public void testDeleteMessage() throws MQException, IOException, ClassNotFoundException {
+        MSGQueue queue = createQueue(ConstantForMessageFileTest.QUEUE_NAME_1);
+        List<Message> expectedMessageList = new LinkedList<>();
+        for(int i = 0;i < 10;i++){
+            Message messageInfo = null;
+            if (i % 3 == 0) {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_1 + i);
+            } else if (i % 3 == 1) {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_2 + i);
+            } else {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_3 + i);
+            }
+            messageFileManager.sendMessage(queue, messageInfo);
+            expectedMessageList.add(messageInfo);
+        }
+        log.info("[testDeleteMessage] 已写入 10 条消息");
+        //删除最后三个
+        messageFileManager.deleteMessage(queue,expectedMessageList.get(7));
+        messageFileManager.deleteMessage(queue,expectedMessageList.get(8));
+        messageFileManager.deleteMessage(queue,expectedMessageList.get(9));
+        log.info("[testDeleteMessage] 已软删除下标 7/8/9 的消息");
+        //对比内容是否符合了要求
+        LinkedList<Message> messageLinkedList = messageFileManager.queryAllMessage(ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(7,messageLinkedList.size());
+        log.info("[testDeleteMessage] 删除后有效消息数量校验通过：{} 条", messageLinkedList.size());
+        //检查统计文件：totalCount 仍是 10（软删除不减总数），validCount 应该是 7
+        MessageFileManager.Stat stat = ReflectionTestUtils
+                .invokeMethod(messageFileManager, "getStat", ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(10, stat.totalCount);
+        Assertions.assertEquals(7, stat.validCount);
+        log.info("[testDeleteMessage] 统计文件校验通过：totalCount={}, validCount={}", stat.totalCount, stat.validCount);
+        //消息是否符合要求
+        for(int i = 0;i < messageLinkedList.size();i++){
+            Message expectedMessage = expectedMessageList.get(i);
+            Message message = messageLinkedList.get(i);
+            //对比各字段，和testSendMessage保持一致
+            Assertions.assertEquals(expectedMessage.getMessageId(), message.getMessageId());
+            Assertions.assertEquals(expectedMessage.getRoutingKey(), message.getRoutingKey());
+            Assertions.assertEquals(expectedMessage.getDeliverMode(), message.getDeliverMode());
+            //body是字节数组，不能直接用assertEquals
+            Assertions.assertArrayEquals(expectedMessage.getBody(), message.getBody());
+            if (i % 3 == 0) {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_1 + i).getBytes(), message.getBody());
+            } else if (i % 3 == 1) {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_2 + i).getBytes(), message.getBody());
+            } else {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_3 + i).getBytes(), message.getBody());
+            }
+        }
+        log.info("[testDeleteMessage] 逐条内容校验通过：{} 条有效消息均正确", messageLinkedList.size());
+        log.info("[testDeleteMessage] 删除消息校验成功！");
+    }
+
+    //测试垃圾回收
+    //先在队列中写100个消息，再把100个消息的一半都删除掉（下标为偶数的删除），并获取到我们的文件大小
+    //手动调用GC，得到的新文件大小是否比之前小了
+    @Test
+    public void testGC() throws MQException, IOException, ClassNotFoundException {
+        MSGQueue queue = createQueue(ConstantForMessageFileTest.QUEUE_NAME_1);
+        List<Message> expectedMessageList = new LinkedList<>();
+        for (int i = 0; i < 100; i++) {
+            Message messageInfo = null;
+            if (i % 3 == 0) {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_1 + i);
+            } else if (i % 3 == 1) {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_2 + i);
+            } else {
+                messageInfo = createMessage(ConstantForMessageFileTest.MESSAGE_CONTENT_3 + i);
+            }
+            messageFileManager.sendMessage(queue, messageInfo);
+            expectedMessageList.add(messageInfo);
+        }
+        log.info("[testGC] 已写入 100 条消息");
+        //获取GC前的文件大小
+        File beforeGC = new File("./data/"+ConstantForMessageFileTest.QUEUE_NAME_1+"/queue_data.txt");
+        long beforeGCLength = beforeGC.length();
+        log.info("[testGC] GC 前文件大小：{} bytes", beforeGCLength);
+        //删除偶数下标的消息
+        for(int i = 0;i < 100;i += 2){
+            messageFileManager.deleteMessage(queue,expectedMessageList.get(i));
+        }
+        log.info("[testGC] 已软删除 50 条偶数下标消息");
+        //边界：GC 前先检查 checkGC 的返回值是否符合预期（50/100 < 50%，应该触发 GC 条件）
+        //注意我们触发条件是 totalCount > 2000，这里 100 条不满足，checkGC 应该返回 false
+        boolean shouldGC = messageFileManager.checkGC(ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertFalse(shouldGC);
+        log.info("[testGC] checkGC 边界校验通过：总数 100 < 2000，不触发自动 GC，结果={}", shouldGC);
+        //手动调用GC
+        messageFileManager.GC(queue);
+        log.info("[testGC] GC 执行完毕");
+        //重新读取消息队列
+        List<Message> messageList = messageFileManager.queryAllMessage(ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(50,messageList.size());
+        log.info("[testGC] GC 后有效消息数量校验通过：{} 条", messageList.size());
+        //GC 后统计文件中 totalCount 和 validCount 应该同步更新为 50
+        MessageFileManager.Stat statAfterGC = ReflectionTestUtils
+                .invokeMethod(messageFileManager, "getStat", ConstantForMessageFileTest.QUEUE_NAME_1);
+        Assertions.assertEquals(50, statAfterGC.totalCount);
+        Assertions.assertEquals(50, statAfterGC.validCount);
+        log.info("[testGC] GC 后统计文件校验通过：totalCount={}, validCount={}", statAfterGC.totalCount, statAfterGC.validCount);
+        //取出每一个消息对比，注意我们删除了偶数下标元素，因此我们对比的要是奇数下标的消息
+        for(int i = 0;i < messageList.size();i++){
+            //GC后存活的是奇数下标消息，原始下标 = 2*i+1
+            int originalIndex = 2 * i + 1;
+            Message expectedMessage = expectedMessageList.get(originalIndex);
+            Message message = messageList.get(i);
+            //对比各字段，和testSendMessage保持一致
+            Assertions.assertEquals(expectedMessage.getMessageId(), message.getMessageId());
+            Assertions.assertEquals(expectedMessage.getRoutingKey(), message.getRoutingKey());
+            Assertions.assertEquals(expectedMessage.getDeliverMode(), message.getDeliverMode());
+            //body是字节数组，不能直接用assertEquals
+            Assertions.assertArrayEquals(expectedMessage.getBody(), message.getBody());
+            //内容比对要用原始下标，因为消息内容是按原始下标决定的，而不是循环变量i
+            if (originalIndex % 3 == 0) {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_1 + originalIndex).getBytes(), message.getBody());
+            } else if (originalIndex % 3 == 1) {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_2 + originalIndex).getBytes(), message.getBody());
+            } else {
+                Assertions.assertArrayEquals((ConstantForMessageFileTest.MESSAGE_CONTENT_3 + originalIndex).getBytes(), message.getBody());
+            }
+        }
+        log.info("[testGC] 逐条消息内容校验通过：{} 条奇数下标消息均正确", messageList.size());
+        //重新读取消息数据文件大小
+        File afterGC = new File("./data/"+ConstantForMessageFileTest.QUEUE_NAME_1+"/queue_data.txt");
+        long afterGCLength = afterGC.length();
+        log.info("[testGC] GC 前文件大小：{} bytes，GC 后文件大小：{} bytes，节省：{} bytes",
+                beforeGCLength, afterGCLength, beforeGCLength - afterGCLength);
+        //比较结果
+        Assertions.assertTrue(beforeGCLength > afterGCLength);
+        log.info("[testGC] GC 文件大小校验通过，垃圾回收校验成功！");
+    }
+}
+```
+
+## 三、DAY03
+
+### 1. 硬盘统一操作集合（数据库&文件）  
+
+```java
+package org.zlh.messagequeuedemo.mqserver.datacenter;
+
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.Bingding;
+import org.zlh.messagequeuedemo.mqserver.core.Exchange;
+import org.zlh.messagequeuedemo.mqserver.core.MSGQueue;
+import org.zlh.messagequeuedemo.mqserver.core.Message;
+
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+
+/**
+ * @author pluchon
+ * @create 2026-03-28-10:33
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//使用这个类管理所有硬盘数据（数据库->交换机绑定，数据文件->消息）
+//说白了就是我们进行统一的封装便于调用
+public class DiskDataCenter {
+    private DataBaseManager dataBaseManager = new DataBaseManager();
+    private MessageFileManager messageFileManager = new MessageFileManager();
+
+    //对上述两个实例进行初始化
+    public void init(){
+        dataBaseManager.init();
+        messageFileManager.init();
+    }
+
+    //封装交换机操作
+    public void insertExchange(Exchange exchange){
+        dataBaseManager.insertExchange(exchange);
+    }
+
+    public void deleteExchange(String exchangeName){
+        dataBaseManager.deleteExchange(exchangeName);
+    }
+
+    public List<Exchange> queryAllExchange(){
+        return dataBaseManager.queryAllExchange();
+    }
+
+    //封装队列操作
+    public void insertQueue(MSGQueue queue) throws IOException {
+        //写入数据库
+        dataBaseManager.insertQueue(queue);
+        //创建队列对应的磁盘目录和文件
+        messageFileManager.createQueue(queue.getName());
+    }
+
+    public void deleteQueue(String queueName) throws IOException {
+        //删除数据库记录
+        dataBaseManager.deleteQueue(queueName);
+        //删除队列对应的磁盘目录和文件
+        messageFileManager.deleteQueue(queueName);
+    }
+
+    public List<MSGQueue> queryAllQueue(){
+        return dataBaseManager.queryAllQueue();
+    }
+
+    //封装绑定关系操作
+    public void insertBingding(Bingding bingding){
+        dataBaseManager.insertBingding(bingding);
+    }
+
+    public void deleteBingding(Bingding bingding){
+        dataBaseManager.deleteBingding(bingding);
+    }
+
+    public List<Bingding> queryAllBingding(){
+        return dataBaseManager.queryAllBingding();
+    }
+
+    //消息文件操作
+    public void insertMessage(MSGQueue queue,Message message) throws MQException, IOException {
+        messageFileManager.sendMessage(queue,message);
+    }
+
+    public void deleteMessage(MSGQueue queue,Message message) throws IOException, ClassNotFoundException, MQException {
+        messageFileManager.deleteMessage(queue,message);
+        //注意，考虑是否进行GC！！
+        if(messageFileManager.checkGC(queue.getName())){
+            messageFileManager.GC(queue);
+        }
+    }
+
+    public LinkedList<Message> queryAllMessage(String queueName) throws MQException, IOException, ClassNotFoundException {
+        return messageFileManager.queryAllMessage(queueName);
+    }
+}
+```
+
+### 2. DiskDataCenter对应的测试类  
+
+```java
+package org.zlh.messagequeuedemo.mqserver.datacenter;
+
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.zlh.messagequeuedemo.MessageQueueDemoApplication;
+import org.zlh.messagequeuedemo.common.constant.ConstantForDiskDataCenterTest;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.*;
+
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+
+/**
+ * @author pluchon
+ * @create 2026-03-28-10:47
+ *         作者代码水平一般，难免难看，请见谅
+ */
+@Slf4j
+@SpringBootTest
+public class DiskDataCenterTest {
+    private final DiskDataCenter diskDataCenter = new DiskDataCenter();
+
+    @BeforeEach
+    public void setUp() {
+        //启动 Spring 上下文，初始化数据库和文件目录
+        MessageQueueDemoApplication.context = SpringApplication.run(MessageQueueDemoApplication.class);
+        diskDataCenter.init();
+        log.info("[setUp] DiskDataCenter 初始化完成");
+    }
+
+    @AfterEach
+    public void tearDown() throws IOException {
+        //关闭 Spring 上下文，释放数据库文件锁，再清理磁盘数据
+        MessageQueueDemoApplication.context.close();
+        //清理数据库文件
+        DataBaseManager dataBaseManager = new DataBaseManager();
+        dataBaseManager.deleteDB();
+        //清理消息文件目录：把测试中创建的两个队列目录删掉
+        MessageFileManager messageFileManager = new MessageFileManager();
+        //deleteQueue 要求文件必须存在才能删，我们用 try-catch 兜底，避免因为测试失败导致目录不存在而二次报错
+        try {
+            messageFileManager.deleteQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        } catch (IOException ignored) {
+            //.....
+        }
+        try {
+            messageFileManager.deleteQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_2);
+        } catch (IOException ignored) {
+            //.....
+        }
+        log.info("[tearDown] 磁盘数据清理完成");
+    }
+
+    // ======================== 构建辅助工具 ========================
+
+    //构建交换机
+    private Exchange createExchange(String exchangeName) {
+        Exchange exchange = new Exchange();
+        exchange.setName(exchangeName);
+        exchange.setExchangeType(ExchangeTtype.DIRECT);
+        exchange.setIsPermanent(true);
+        exchange.setIsDelete(false);
+        return exchange;
+    }
+
+    //构建队列
+    private MSGQueue createQueue(String queueName) {
+        MSGQueue queue = new MSGQueue();
+        queue.setName(queueName);
+        queue.setIsPermanent(true);
+        queue.setIsDelete(false);
+        queue.setExclusivel(false);
+        return queue;
+    }
+
+    //构建绑定关系
+    private Bingding createBingding(String exchangeName, String queueName, String bindingKey) {
+        Bingding bingding = new Bingding();
+        bingding.setExchangeName(exchangeName);
+        bingding.setQueueName(queueName);
+        bingding.setBindingKey(bindingKey);
+        return bingding;
+    }
+
+    //构建消息
+    private Message createMessage(String content) {
+        return Message.messageCreateWithIDFactory(ConstantForDiskDataCenterTest.ROUTING_KEY_1, null, content.getBytes());
+    }
+
+    // ======================== 交换机测试 ========================
+
+    @Test
+    public void testInsertAndQueryExchange() {
+        Exchange exchange = createExchange(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1);
+        diskDataCenter.insertExchange(exchange);
+        log.info("[testInsertAndQueryExchange] 插入交换机：{}", exchange.getName());
+        List<Exchange> exchangeList = diskDataCenter.queryAllExchange();
+        //初始有一个默认匿名交换机，插入后应有 2 条
+        Assertions.assertEquals(2, exchangeList.size());
+        Exchange result = exchangeList.get(1);
+        Assertions.assertEquals(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1, result.getName());
+        Assertions.assertEquals(ExchangeTtype.DIRECT, result.getExchangeType());
+        Assertions.assertTrue(result.getIsPermanent());
+        Assertions.assertFalse(result.getIsDelete());
+        Assertions.assertNotNull(result);
+        log.info("[testInsertAndQueryExchange] 交换机校验通过：name={}, type={}", result.getName(), result.getExchangeType());
+        log.info("[testInsertAndQueryExchange] 交换机插入与查询校验成功！");
+    }
+
+    @Test
+    public void testDeleteExchange() {
+        Exchange exchange = createExchange(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1);
+        diskDataCenter.insertExchange(exchange);
+        List<Exchange> beforeDelete = diskDataCenter.queryAllExchange();
+        Assertions.assertEquals(2, beforeDelete.size());
+        log.info("[testDeleteExchange] 插入后数量校验通过：{} 条", beforeDelete.size());
+        diskDataCenter.deleteExchange(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1);
+        List<Exchange> afterDelete = diskDataCenter.queryAllExchange();
+        //删除后只剩默认匿名交换机
+        Assertions.assertEquals(1, afterDelete.size());
+        Assertions.assertEquals("", afterDelete.get(0).getName());
+        log.info("[testDeleteExchange] 删除后数量校验通过：{} 条", afterDelete.size());
+        //删除不存在的交换机，不应该抛异常
+        Assertions.assertDoesNotThrow(() -> diskDataCenter.deleteExchange("nonExistExchange"));
+        Assertions.assertEquals(1, diskDataCenter.queryAllExchange().size());
+        log.info("[testDeleteExchange] 边界校验通过：删除不存在的交换机不抛异常");
+        log.info("[testDeleteExchange] 交换机删除校验成功！");
+    }
+
+    // ======================== 队列测试 ========================
+
+    @Test
+    public void testInsertAndQueryQueue() throws IOException {
+        MSGQueue queue = createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        diskDataCenter.insertQueue(queue);
+        log.info("[testInsertAndQueryQueue] 插入队列：{}", queue.getName());
+        List<MSGQueue> queueList = diskDataCenter.queryAllQueue();
+        //队列初始为空，插入后应有 1 条
+        Assertions.assertEquals(1, queueList.size());
+        MSGQueue result = queueList.get(0);
+        Assertions.assertEquals(ConstantForDiskDataCenterTest.QUEUE_NAME_1, result.getName());
+        Assertions.assertTrue(result.getIsPermanent());
+        Assertions.assertFalse(result.getIsDelete());
+        Assertions.assertFalse(result.getExclusivel());
+        log.info("[testInsertAndQueryQueue] 队列校验通过：name={}", result.getName());
+        log.info("[testInsertAndQueryQueue] 队列插入与查询校验成功！");
+    }
+
+    @Test
+    public void testDeleteQueue() throws IOException {
+        MSGQueue queue = createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        diskDataCenter.insertQueue(queue);
+        Assertions.assertEquals(1, diskDataCenter.queryAllQueue().size());
+        log.info("[testDeleteQueue] 插入后数量校验通过：1 条");
+        diskDataCenter.deleteQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        Assertions.assertEquals(0, diskDataCenter.queryAllQueue().size());
+        log.info("[testDeleteQueue] 删除后数量校验通过：0 条");
+        //删除不存在的队列，deleteQueue 会尝试删文件，文件不存在则抛 IOException，这是明确的错误语义
+        Assertions.assertThrows(IOException.class, () -> diskDataCenter.deleteQueue("nonExistQueue"));
+        log.info("[testDeleteQueue] 边界校验通过：删除不存在的队列抛出 IOException");
+        log.info("[testDeleteQueue] 队列删除校验成功！");
+    }
+
+    // ======================== 绑定关系测试 ========================
+
+    @Test
+    public void testInsertAndQueryBingding() throws IOException {
+        //插入绑定依赖的交换机和队列
+        diskDataCenter.insertExchange(createExchange(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1));
+        diskDataCenter.insertQueue(createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1));
+        diskDataCenter.insertQueue(createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_2));
+        Bingding bingding1 = createBingding(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1,
+                ConstantForDiskDataCenterTest.QUEUE_NAME_1, ConstantForDiskDataCenterTest.BINDING_KEY_1);
+        Bingding bingding2 = createBingding(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1,
+                ConstantForDiskDataCenterTest.QUEUE_NAME_2, ConstantForDiskDataCenterTest.BINDING_KEY_1);
+        diskDataCenter.insertBingding(bingding1);
+        diskDataCenter.insertBingding(bingding2);
+        log.info("[testInsertAndQueryBingding] 插入 2 条绑定关系");
+        List<Bingding> bingdingList = diskDataCenter.queryAllBingding();
+        Assertions.assertEquals(2, bingdingList.size());
+        Bingding result = bingdingList.get(0);
+        Assertions.assertEquals(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1, result.getExchangeName());
+        Assertions.assertEquals(ConstantForDiskDataCenterTest.QUEUE_NAME_1, result.getQueueName());
+        Assertions.assertEquals(ConstantForDiskDataCenterTest.BINDING_KEY_1, result.getBindingKey());
+        Assertions.assertNotNull(result);
+        log.info("[testInsertAndQueryBingding] 绑定关系校验通过：exchange={}, queue={}", result.getExchangeName(), result.getQueueName());
+        log.info("[testInsertAndQueryBingding] 绑定关系插入与查询校验成功！");
+    }
+
+    @Test
+    public void testDeleteBingding() throws IOException {
+        diskDataCenter.insertExchange(createExchange(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1));
+        diskDataCenter.insertQueue(createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1));
+        diskDataCenter.insertQueue(createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_2));
+        Bingding bingding1 = createBingding(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1,
+                ConstantForDiskDataCenterTest.QUEUE_NAME_1, ConstantForDiskDataCenterTest.BINDING_KEY_1);
+        Bingding bingding2 = createBingding(ConstantForDiskDataCenterTest.EXCHANGE_NAME_1,
+                ConstantForDiskDataCenterTest.QUEUE_NAME_2, ConstantForDiskDataCenterTest.BINDING_KEY_1);
+        diskDataCenter.insertBingding(bingding1);
+        diskDataCenter.insertBingding(bingding2);
+        Assertions.assertEquals(2, diskDataCenter.queryAllBingding().size());
+        //删除第一条，验证只剩一条且是 queue2 的绑定
+        diskDataCenter.deleteBingding(bingding1);
+        List<Bingding> bingdingList = diskDataCenter.queryAllBingding();
+        Assertions.assertEquals(1, bingdingList.size());
+        Assertions.assertEquals(ConstantForDiskDataCenterTest.QUEUE_NAME_2, bingdingList.get(0).getQueueName());
+        log.info("[testDeleteBingding] 删除第一条后数量校验通过，剩余绑定 queue={}", bingdingList.get(0).getQueueName());
+        //删除第二条，验证列表为空
+        diskDataCenter.deleteBingding(bingding2);
+        Assertions.assertEquals(0, diskDataCenter.queryAllBingding().size());
+        //边界：删除不存在的绑定不应该抛异常
+        Bingding nonExist = createBingding("nonExist", "nonExist", "nonExist");
+        Assertions.assertDoesNotThrow(() -> diskDataCenter.deleteBingding(nonExist));
+        Assertions.assertEquals(0, diskDataCenter.queryAllBingding().size());
+        log.info("[testDeleteBingding] 边界校验通过：删除不存在的绑定不抛异常");
+        log.info("[testDeleteBingding] 绑定关系删除校验成功！");
+    }
+
+    // ======================== 消息文件测试 ========================
+
+    @Test
+    public void testInsertAndQueryMessage() throws MQException, IOException, ClassNotFoundException {
+        //消息文件操作依赖队列目录，需要先插入队列（insertQueue 会触发 createQueue 创建目录）
+        MSGQueue queue = createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        diskDataCenter.insertQueue(queue);
+        Message message = createMessage(ConstantForDiskDataCenterTest.MESSAGE_CONTENT_1 + "0");
+        diskDataCenter.insertMessage(queue, message);
+        log.info("[testInsertAndQueryMessage] 插入消息 -> messageId={}, body={}",
+                message.getMessageId(), new String(message.getBody()));
+        LinkedList<Message> messageList = diskDataCenter.queryAllMessage(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        Assertions.assertEquals(1, messageList.size());
+        Message result = messageList.get(0);
+        Assertions.assertEquals(message.getMessageId(), result.getMessageId());
+        Assertions.assertEquals(message.getRoutingKey(), result.getRoutingKey());
+        Assertions.assertArrayEquals(message.getBody(), result.getBody());
+        log.info("[testInsertAndQueryMessage] 读回消息校验通过：messageId={}, body={}",
+                result.getMessageId(), new String(result.getBody()));
+        //读取空队列，结果是空列表，非 null
+        MSGQueue queue2 = createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_2);
+        diskDataCenter.insertQueue(queue2);
+        LinkedList<Message> emptyList = diskDataCenter.queryAllMessage(ConstantForDiskDataCenterTest.QUEUE_NAME_2);
+        Assertions.assertNotNull(emptyList);
+        Assertions.assertEquals(0, emptyList.size());
+        log.info("[testInsertAndQueryMessage] 边界校验通过：空队列读取返回空列表");
+        log.info("[testInsertAndQueryMessage] 消息插入与查询校验成功！");
+    }
+
+    @Test
+    public void testDeleteMessage() throws MQException, IOException, ClassNotFoundException {
+        //先构建好队列和消息
+        MSGQueue queue = createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        diskDataCenter.insertQueue(queue);
+        List<Message> expectedList = new LinkedList<>();
+        for (int i = 0; i < 10; i++) {
+            Message msg = createMessage(ConstantForDiskDataCenterTest.MESSAGE_CONTENT_1 + i);
+            diskDataCenter.insertMessage(queue, msg);
+            expectedList.add(msg);
+        }
+        log.info("[testDeleteMessage] 已写入 10 条消息");
+        //删除最后三条
+        diskDataCenter.deleteMessage(queue, expectedList.get(7));
+        diskDataCenter.deleteMessage(queue, expectedList.get(8));
+        diskDataCenter.deleteMessage(queue, expectedList.get(9));
+        log.info("[testDeleteMessage] 已软删除下标 7/8/9 的消息");
+        LinkedList<Message> messageList = diskDataCenter.queryAllMessage(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        Assertions.assertEquals(7, messageList.size());
+        //逐条校验剩余的 7 条消息内容正确
+        for (int i = 0; i < messageList.size(); i++) {
+            Assertions.assertEquals(expectedList.get(i).getMessageId(), messageList.get(i).getMessageId());
+            Assertions.assertArrayEquals(expectedList.get(i).getBody(), messageList.get(i).getBody());
+        }
+        log.info("[testDeleteMessage] 剩余 {} 条消息内容逐条校验通过", messageList.size());
+        log.info("[testDeleteMessage] 消息删除校验成功！");
+    }
+
+    //测试 deleteMessage 内嵌的自动 GC 逻辑
+    //当满足条件（totalCount > 2000 且 validCount/totalCount < 50%）时应自动触发 GC
+    //手动触发 GC 需要 totalCount > 2000，我们用 MessageFileManager 直接绕过 DiskDataCenter 写入大量消息
+    @Test
+    public void testAutoGCTriggeredByDeleteMessage() throws MQException, IOException, ClassNotFoundException {
+        //为了快速构造 GC 触发条件，我们直接调用底层 MessageFileManager 写 2001 条消息
+        MSGQueue queue = createQueue(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        diskDataCenter.insertQueue(queue);
+        MessageFileManager messageFileManager = new MessageFileManager();
+        List<Message> msgList = new LinkedList<>();
+        for (int i = 0; i < 2001; i++) {
+            Message msg = createMessage(ConstantForDiskDataCenterTest.MESSAGE_CONTENT_1 + i);
+            messageFileManager.sendMessage(queue, msg);
+            msgList.add(msg);
+        }
+        log.info("[testAutoGCTriggeredByDeleteMessage] 底层写入 2001 条消息");
+        //删除 50% 以上（1001 条），让 checkGC 条件满足
+        for (int i = 0; i < 1001; i++) {
+            //通过 DiskDataCenter.deleteMessage 触发 checkGC 判断
+            diskDataCenter.deleteMessage(queue, msgList.get(i));
+        }
+        log.info("[testAutoGCTriggeredByDeleteMessage] 已删除 1001 条，GC 应已自动触发");
+        //GC 触发后，文件中只剩下有效消息（1000 条），且 totalCount 和 validCount 应该同步为 1000
+        LinkedList<Message> messageList = diskDataCenter.queryAllMessage(ConstantForDiskDataCenterTest.QUEUE_NAME_1);
+        Assertions.assertEquals(1000, messageList.size());
+        log.info("[testAutoGCTriggeredByDeleteMessage] GC 后有效消息数量校验通过：{} 条", messageList.size());
+        log.info("[testAutoGCTriggeredByDeleteMessage] 自动 GC 触发校验成功！");
+    }
+}
+```
+
+### 3. 统一内存操作集合（内存&加载硬盘内容）  
+
+```java
+package org.zlh.messagequeuedemo.mqserver.datacenter;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.Bingding;
+import org.zlh.messagequeuedemo.mqserver.core.Exchange;
+import org.zlh.messagequeuedemo.mqserver.core.MSGQueue;
+import org.zlh.messagequeuedemo.mqserver.core.Message;
+
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author pluchon
+ * @create 2026-03-28-12:40
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//管理内存中的数据，而且我们要线程安全
+@Slf4j
+public class MemoryDataCenter {
+    //String表示我们交换机名字，Value就是我们的值
+    private ConcurrentHashMap<String, Exchange> exchangeConcurrentHashMap = new ConcurrentHashMap<>();
+    //String表示我们队列名字，Value就是我们的值
+    private ConcurrentHashMap<String, MSGQueue> msgQueueConcurrentHashMap = new ConcurrentHashMap<>();
+    //key1->交换机名字，Key2->队列名字，Value->就是我们的值
+    private ConcurrentHashMap<String,ConcurrentHashMap<String, Bingding>> bingdingsConcurrentHashMap = new ConcurrentHashMap<>();
+    //String->消息ID，Value->值
+    private ConcurrentHashMap<String, Message> messageConcurrentHashMap = new ConcurrentHashMap<>();
+    //String->队列名字，Value->这个消息队列中所有的消息
+    private ConcurrentHashMap<String, LinkedList<Message>> queueMessageConcurrentHashMap = new ConcurrentHashMap<>();
+    //Key1->队列名字，Key2->消息ID，Value->消息本体，后续我们会实现消息确认逻辑使用HashMap方便进行查找
+    private ConcurrentHashMap<String,ConcurrentHashMap<String,Message>> ackMessageQueueConcurrentHashMap = new ConcurrentHashMap<>();
+
+    //交换机
+    public void insertExchange(Exchange exchange){
+        exchangeConcurrentHashMap.put(exchange.getName(),exchange);
+        log.info("[MemoryDataCenter] 交换机添加成功，exchangeName={}", exchange.getName());
+    }
+
+    public Exchange getExchange(String exchangeName){
+        return exchangeConcurrentHashMap.get(exchangeName);
+    }
+
+    public void deleteExchange(String exchangeName){
+        exchangeConcurrentHashMap.remove(exchangeName);
+        log.info("[MemoryDataCenter] 交换机移除成功，exchangeName={}", exchangeName);
+    }
+
+    //队列
+    public void insertQueue(MSGQueue queue){
+        msgQueueConcurrentHashMap.put(queue.getName(),queue);
+        log.info("[MemoryDataCenter] 队列添加成功，queueName={}", queue.getName());
+    }
+
+    public MSGQueue getQueue(String queueName){
+        return msgQueueConcurrentHashMap.get(queueName);
+    }
+
+    public void deleteQueue(String queueName){
+        msgQueueConcurrentHashMap.remove(queueName);
+        log.info("[MemoryDataCenter] 队列移除成功，queueName={}", queueName);
+    }
+
+    //绑定关系，注意嵌套哈希表！
+    public void insertBingding(Bingding bingding) throws MQException {
+        //获取交换机名字以及队列名字，查看是否已经存在
+        String exchangeName = bingding.getExchangeName();
+        String queueName = bingding.getQueueName();
+        //为空才插入，这个computeIfAbsenthi校验你的Key存不存在，不存在则执行后面的代码逻辑（lambda表达式）
+        ConcurrentHashMap<String, Bingding> bingdingMap = bingdingsConcurrentHashMap
+                .computeIfAbsent(exchangeName, k -> new ConcurrentHashMap<>());
+        //针对数据进一步查询，而且以下代码要线程安全（因为我们get和put是两步的操作，是有前因后果的）
+        //我们针对bingdingMap操作，就对它进行加锁操作
+        synchronized(bingdingMap){
+            Bingding getBingding = bingdingMap.get(queueName);
+            //说明这个绑定关系已经存在了，不能再次切换绑定
+            if(getBingding != null){
+                throw new MQException("[MemoryDataCenter] 绑定关系已经存在"+exchangeName+"->"+queueName);
+            }
+            //正式进行插入
+            bingdingMap.put(queueName,bingding);
+            log.info("[MemoryDataCenter] 绑定关系添加成功，exchangeName={} -> queueName={}", exchangeName, queueName);
+        }
+    }
+
+    //获取指定的队列与交换机的绑定
+    public Bingding getBingdingOnce(String exchangeName,String queueName){
+        ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = bingdingsConcurrentHashMap.get(exchangeName);
+        //该交换机没有绑定到任何队列
+        if(stringBingdingConcurrentHashMap == null){
+            log.info("[MemoryDataCenter] 该交换机没有绑定任何队列: exchangeName={}", exchangeName);
+            return null;
+        }
+        return stringBingdingConcurrentHashMap.get(queueName);
+    }
+
+    //获取该交换机的所有绑定关系
+    public ConcurrentHashMap<String,Bingding> queryAllBingding(String exchangeName){
+        return bingdingsConcurrentHashMap.get(exchangeName);
+    }
+
+    //删除绑定关系
+    public void deleteBingding(Bingding bingding) throws MQException {
+        String queueName = bingding.getQueueName();
+        String exchangeName = bingding.getExchangeName();
+        ConcurrentHashMap<String,Bingding> stringBingdingConcurrentHashMap = bingdingsConcurrentHashMap.get(exchangeName);
+        //该交换机没有绑定任何队列
+        if(stringBingdingConcurrentHashMap == null){
+            throw new MQException("[MemoryDataCenter] 绑定关系不存在！"+queueName+"->"+exchangeName);
+        }
+        //可以删除
+        stringBingdingConcurrentHashMap.remove(queueName);
+        log.info("[MemoryDataCenter] 绑定关系移除成功，exchangeName={} -> queueName={}", exchangeName, queueName);
+    }
+
+    //插入消息到消息总表中
+    public void insertMessage(Message message){
+        messageConcurrentHashMap.put(message.getMessageId(),message);
+        log.info("[MemoryDataCenter] 新消息添加完成，messageId={}", message.getMessageId());
+    }
+
+    //根据消息ID查询消息
+    public Message getMessageWithId(String messageId){
+        return messageConcurrentHashMap.get(messageId);
+    }
+
+    //删除消息
+    public void deleteMessage(String messageId){
+        messageConcurrentHashMap.remove(messageId);
+        log.info("[MemoryDataCenter] 消息移除成功，messageId={}", messageId);
+    }
+
+    //发送消息到指定的队列，也就是把消息放入queueMessageConcurrentHashMap中
+    //并且要考虑多线程
+    public void sendMessage(MSGQueue queue,Message message){
+        String queueName = queue.getName();
+        //说明该队列还没有任何消息，因此们创建这个链表，进行判断（之前用过了）
+        //这里computeIfAbsent是线程安全的
+        LinkedList<Message> messageLinkedList = queueMessageConcurrentHashMap.computeIfAbsent(queueName, k -> new LinkedList<>());
+        //这里线程不安全
+        synchronized (messageLinkedList) {
+            //放入我们的消息
+            messageLinkedList.add(message);
+        }
+        //插入到我们的总的消息表中，重复插入也没关系，我们重点是MessageId与Message内容要对应就好
+        insertMessage(message);
+        log.info("[MemoryDataCenter] 消息发送成功，messageId={}->queueName={}",message.getMessageId(),queue.getName());
+    }
+
+    //从队列中获取消息，取一条
+    public Message getMessage(String queueName){
+        //查找，如果不存在则说明没有消息
+        LinkedList<Message> messageLinkedList = queueMessageConcurrentHashMap.get(queueName);
+        if (messageLinkedList.isEmpty()) {
+            return null;
+        }
+        //注意如果是空则我们不能进行加锁
+        synchronized (messageLinkedList) {
+            //取头部元素，进行头删
+            log.info("[MemoryDataCenter] 消息从队列中取出！" + queueName);
+            return messageLinkedList.remove(0);
+        }
+    }
+
+    //获取我们指定队列的消息的个数
+    public int getQueueMessageCount(String queueName){
+        LinkedList<Message> messageLinkedList = queueMessageConcurrentHashMap.get(queueName);
+        if(messageLinkedList == null){
+            return 0;
+        }
+        synchronized (messageLinkedList) {
+            return messageLinkedList.size();
+        }
+    }
+
+    //未确认消息添加
+    //Key1->队列名字，Key2->MessageId，Value->消息
+    public void insertWithAckMessage(String queueName,Message message){
+        ConcurrentHashMap<String, Message> stringMessageConcurrentHashMap = ackMessageQueueConcurrentHashMap
+                .computeIfAbsent(queueName,k -> new ConcurrentHashMap<>());
+        stringMessageConcurrentHashMap.put(message.getMessageId(),message);
+        log.info("[MemoryDataCenter] 未确认消息添加成功，queueName={}，messageId={}", queueName, message.getMessageId());
+    }
+
+    //删除未确认消息
+    public void deleteWithAckMessage(String queueName,Message message){
+        ConcurrentHashMap<String, Message> stringMessageConcurrentHashMap = ackMessageQueueConcurrentHashMap.get(queueName);
+        //没有这个待确认消息，无需删除
+        if(stringMessageConcurrentHashMap == null){
+            return;
+        }
+        stringMessageConcurrentHashMap.remove(message.getMessageId());
+        log.info("[MemoryDataCenter] 未确认消息删除成功，queueName={}，messageId={}", queueName, message.getMessageId());
+    }
+
+    //获取指定的未确认消息
+    public Message getWithAckMessage(String queueName,String messageId){
+        ConcurrentHashMap<String, Message> stringMessageConcurrentHashMap = ackMessageQueueConcurrentHashMap.get(queueName);
+        if(stringMessageConcurrentHashMap == null){
+            return null;
+        }
+        return stringMessageConcurrentHashMap.get(messageId);
+    }
+
+    //从硬盘上读取数据，放入内存中
+    public void recovery(DiskDataCenter diskDataCenter) throws MQException, IOException, ClassNotFoundException {
+        //先清楚所有的交换机内的数据
+        exchangeConcurrentHashMap.clear();
+        //先清空所以的队列数据
+        msgQueueConcurrentHashMap.clear();
+        //先清空所有的绑定关系数据
+        bingdingsConcurrentHashMap.clear();
+        //先清空所有的消息数据
+        messageConcurrentHashMap.clear();
+        //恢复所有交换机数据
+        List<Exchange> exchangeList = diskDataCenter.queryAllExchange();
+        for(Exchange exchangeInfo : exchangeList){
+            exchangeConcurrentHashMap.put(exchangeInfo.getName(),exchangeInfo);
+        }
+        //恢复所有的队列数据
+        List<MSGQueue> msgQueueList = diskDataCenter.queryAllQueue();
+        for(MSGQueue queueInfo : msgQueueList){
+            msgQueueConcurrentHashMap.put(queueInfo.getName(),queueInfo);
+        }
+        //恢复所有的绑定关系数据
+        List<Bingding> bingdings = diskDataCenter.queryAllBingding();
+        for(Bingding bingdingInfo : bingdings){
+            String exchageName = bingdingInfo.getExchangeName();
+            ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = bingdingsConcurrentHashMap
+                    .computeIfAbsent(exchageName,k -> new ConcurrentHashMap<>());
+            stringBingdingConcurrentHashMap.put(bingdingInfo.getQueueName(),bingdingInfo);
+        }
+        //恢复所有的消息数据，先遍历所有队列获取其名字，再获得其所有的消息
+        for(MSGQueue queueInfo : msgQueueList){
+            String queueName = queueInfo.getName();
+            LinkedList<Message> messageLinkedList = diskDataCenter.queryAllMessage(queueName);
+            queueMessageConcurrentHashMap.put(queueName,messageLinkedList);
+            //把每一个消息添加到消息中心
+            for(Message messageInfo : messageLinkedList){
+                messageConcurrentHashMap.put(messageInfo.getMessageId(),messageInfo);
+            }
+        }
+        
+        log.info("[MemoryDataCenter] 从硬盘恢复数据完成！恢复了交换机 {} 个，队列 {} 个，绑定关系 {} 个，消息 {} 条",
+                exchangeConcurrentHashMap.size(),
+                msgQueueConcurrentHashMap.size(),
+                bingdings.size(),
+                messageConcurrentHashMap.size());
+
+        //为什么不用管ACK？因为我们取了消息但是没有应答，就算是没有真正消息到
+        //一旦等待ACK过程中服务器重启了，此时我们这些"未被确认消息"->"未被取走的消息"，让消费者重新来获取
+    }
+}
+```
+
+### 4. MemoryDataCenter对应的测试类
+
+> 常量类  
+
+```java
+package org.zlh.messagequeuedemo.common.constant;
+
+/**
+ * @author pluchon
+ * @create 2026-03-28-21:12
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//常量类，专门针对于MemoryDataCenter的常量类集合
+public class ConstantForMemoryDataCenterTest {
+    public static final String EXCHANGE_TEST_NAME_1 = "test_exchange1";
+
+    public static final String QUEUE_TEST_NAME_1 = "test_queue1";
+
+    public static final String BINGIDNG_KEY_TEST_NAME_1 = "test_bingidng_key1";
+
+    public static final String ROUTING_KEY_TEST_NAME_1 = "test_routing_key1";
+
+    public static final String MESSAGE_CONTENT_TEST_1 = "test_message_content1";
+}
+```
+
+> 测试类  
+
+```java
+package org.zlh.messagequeuedemo.mqserver.datacenter;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.zlh.messagequeuedemo.MessageQueueDemoApplication;
+import org.zlh.messagequeuedemo.common.constant.ConstantForMemoryDataCenterTest;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author pluchon
+ * @create 2026-03-28-21:08
+ * 作者代码水平一般，难免难看，请见谅
+ */
+@Slf4j
+@SpringBootTest
+public class MemoryDataCenterTest {
+    private MemoryDataCenter memoryDataCenter = null;
+
+    @BeforeEach
+    public void setUp(){
+        //为什么要在这里new对象？因为我们这里数据都存储在内存中，可能会有相互冲突！
+        memoryDataCenter = new MemoryDataCenter();
+    }
+
+    @AfterEach
+    public void tearDown(){
+        //变成null后直接被垃圾回收掉了
+        memoryDataCenter = null;
+    }
+
+    //创建测试交换机
+    private Exchange createTestExchange(String exchangeName){
+        Exchange exchange = new Exchange();
+        exchange.setName(exchangeName);
+        exchange.setExchangeType(ExchangeTtype.DIRECT);
+        exchange.setIsPermanent(true);
+        exchange.setIsDelete(false);
+        return exchange;
+    }
+
+    //创建测试队列
+    private MSGQueue createTestQueue(String queueName){
+        MSGQueue queue = new MSGQueue();
+        queue.setName(queueName);
+        queue.setIsPermanent(true);
+        queue.setExclusivel(false);
+        queue.setIsPermanent(false);
+        return queue;
+    }
+
+    //创建测试消息
+    private Message createMessage(String content){
+        return Message.messageCreateWithIDFactory(ConstantForMemoryDataCenterTest.ROUTING_KEY_TEST_NAME_1
+                ,null,content.getBytes());
+    }
+
+    //=============针对交换机=============
+    @Test
+    public void testExchange(){
+        //创建交换机并插入
+        Exchange expectedExchange = createTestExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        memoryDataCenter.insertExchange(expectedExchange);
+        log.info("[testExchange] 插入交换机：{}", expectedExchange.getName());
+        //查询这个交换机
+        Exchange actualExchange = memoryDataCenter.getExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        //对比，无需一个个参数比较，只需比较是否指向同一个对象就好（因为在内存中）
+        Assertions.assertEquals(expectedExchange,actualExchange);
+        log.info("[testExchange] 查询校验通过，引用相同：{}", actualExchange.getName());
+        //删除交换机
+        memoryDataCenter.deleteExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        actualExchange = memoryDataCenter.getExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        //对比，应该是空结果
+        Assertions.assertNull(actualExchange);
+        log.info("[testExchange] 删除后查询为 null，校验通过");
+        //查询不存在的交换机，应返回 null 而不是抛异常
+        Exchange nonExist = memoryDataCenter.getExchange("nonExistExchange");
+        Assertions.assertNull(nonExist);
+        log.info("[testExchange] 边界校验通过：查询不存在的交换机返回 null");
+        //重复插入同一个对象，后者覆盖前者（引用相同）
+        memoryDataCenter.insertExchange(expectedExchange);
+        memoryDataCenter.insertExchange(expectedExchange);
+        Assertions.assertEquals(expectedExchange, memoryDataCenter.getExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1));
+        log.info("[testExchange] 边界校验通过：重复插入不报错，保持最新引用");
+        log.info("[testExchange] 交换机测试全部通过！");
+    }
+
+    //=====针对队列=======
+    @Test
+    public void testQueue(){
+        MSGQueue expectedQueue = createTestQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        memoryDataCenter.insertQueue(expectedQueue);
+        log.info("[testQueue] 插入队列：{}", expectedQueue.getName());
+        MSGQueue actualQueue = memoryDataCenter.getQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        Assertions.assertEquals(expectedQueue,actualQueue);
+        log.info("[testQueue] 查询校验通过，引用相同：{}", actualQueue.getName());
+        //删除队列
+        memoryDataCenter.deleteQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        actualQueue = memoryDataCenter.getQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        //对比，应该是空结果
+        Assertions.assertNull(actualQueue);
+        log.info("[testQueue] 删除后查询为 null，校验通过");
+        //查询不存在的队列，应返回 null
+        MSGQueue nonExist = memoryDataCenter.getQueue("nonExistQueue");
+        Assertions.assertNull(nonExist);
+        log.info("[testQueue] 边界校验通过：查询不存在的队列返回 null");
+        //删除不存在的队列不应抛异常（内存 ConcurrentHashMap.remove 对不存在的 key 是幂等的）
+        Assertions.assertDoesNotThrow(() -> memoryDataCenter.deleteQueue("nonExistQueue"));
+        log.info("[testQueue] 边界校验通过：删除不存在的队列不抛异常");
+        log.info("[testQueue] 队列测试全部通过！");
+    }
+
+    //=====针对绑定关系========
+    @Test
+    public void testBingding() throws MQException {
+        Bingding expectedBingding = new Bingding();
+        expectedBingding.setExchangeName(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        expectedBingding.setQueueName(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        expectedBingding.setBindingKey(ConstantForMemoryDataCenterTest.BINGIDNG_KEY_TEST_NAME_1);
+        memoryDataCenter.insertBingding(expectedBingding);
+        log.info("[testBingding] 插入绑定关系：{} -> {}", expectedBingding.getExchangeName(), expectedBingding.getQueueName());
+        //查询
+        Bingding actualBingding = memoryDataCenter.getBingdingOnce(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1
+                ,ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        //比较
+        Assertions.assertEquals(expectedBingding,actualBingding);
+        log.info("[testBingding] 单条查询校验通过");
+        //测试该交换机的所有绑定关系，此处只有一个关系
+        ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = memoryDataCenter
+                .queryAllBingding(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        Assertions.assertEquals(1,stringBingdingConcurrentHashMap.size());
+        Assertions.assertEquals(expectedBingding,stringBingdingConcurrentHashMap
+                .get(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1));
+        log.info("[testBingding] queryAllBingding 数量校验通过：{} 条", stringBingdingConcurrentHashMap.size());
+        //删除
+        memoryDataCenter.deleteBingding(expectedBingding);
+        //比较应该为空
+        actualBingding = memoryDataCenter.getBingdingOnce(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1
+                ,ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        Assertions.assertNull(actualBingding);
+        log.info("[testBingding] 删除后查询为 null，校验通过");
+        //重复插入同一个绑定关系，应抛出 MQException（MemoryDataCenter 有重复检测）
+        memoryDataCenter.insertBingding(expectedBingding);
+        Assertions.assertThrows(MQException.class, () -> memoryDataCenter.insertBingding(expectedBingding));
+        log.info("[testBingding] 边界校验通过：重复插入绑定关系抛出 MQException");
+        //对一个完全不存在的交换机查询其 queryAllBingding，返回应为 null
+        ConcurrentHashMap<String, Bingding> nonExistResult = memoryDataCenter.queryAllBingding("nonExistExchange");
+        Assertions.assertNull(nonExistResult);
+        log.info("[testBingding] 边界校验通过：查询不存在交换机的绑定关系返回 null");
+        log.info("[testBingding] 绑定关系测试全部通过！");
+    }
+
+    //针对消息测试
+    @Test
+    public void testMessage(){
+        Message expectedMessage = createMessage(ConstantForMemoryDataCenterTest.MESSAGE_CONTENT_TEST_1);
+        memoryDataCenter.insertMessage(expectedMessage);
+        log.info("[testMessage] 插入消息，messageId={}", expectedMessage.getMessageId());
+        //查询（按 messageId 从总消息表查，应使用 getMessageWithId，而非 getMessage(queueName)）
+        Message actualMessage = memoryDataCenter.getMessageWithId(expectedMessage.getMessageId());
+        Assertions.assertEquals(expectedMessage,actualMessage);
+        log.info("[testMessage] 查询校验通过，引用相同");
+        //删除操作
+        memoryDataCenter.deleteMessage(expectedMessage.getMessageId());
+        actualMessage = memoryDataCenter.getMessageWithId(expectedMessage.getMessageId());
+        Assertions.assertNull(actualMessage);
+        log.info("[testMessage] 删除后查询为 null，校验通过");
+        //查询不存在的 messageId，返回 null
+        Message nonExist = memoryDataCenter.getMessageWithId("nonExistMessageId");
+        Assertions.assertNull(nonExist);
+        log.info("[testMessage] 边界校验通过：查询不存在的 messageId 返回 null");
+        //重复删除同一条消息，不应抛异常（ConcurrentHashMap.remove 是幂等的）
+        Assertions.assertDoesNotThrow(() -> memoryDataCenter.deleteMessage(expectedMessage.getMessageId()));
+        log.info("[testMessage] 边界校验通过：重复删除消息不抛异常");
+        log.info("[testMessage] 消息总表测试全部通过！");
+    }
+
+    //测试消息发送
+    @Test
+    public void testSendMessage(){
+        MSGQueue queue = createTestQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        List<Message> expectedMessageList = new ArrayList<>();
+        //创建十条消息
+        for(int i = 0;i < 10;i++){
+            Message messageInfo = createMessage(ConstantForMemoryDataCenterTest.MESSAGE_CONTENT_TEST_1+i);
+            memoryDataCenter.sendMessage(queue,messageInfo);
+            expectedMessageList.add(messageInfo);
+        }
+        log.info("[testSendMessage] 已发送 10 条消息到队列：{}", queue.getName());
+        //取出消息
+        List<Message> actualMessageList = new LinkedList<>();
+        while(true){
+            Message message = memoryDataCenter.getMessage(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+            //队列获取消息结束
+            if(message == null){
+                break;
+            }
+            actualMessageList.add(message);
+        }
+        log.info("[testSendMessage] 已从队列取出 {} 条消息", actualMessageList.size());
+        //逐一比较
+        Assertions.assertEquals(expectedMessageList.size(),actualMessageList.size());
+        for(int i = 0;i < 10;i++){
+            Assertions.assertEquals(expectedMessageList.get(i),actualMessageList.get(i));
+        }
+        log.info("[testSendMessage] 逐条消息对比通过：FIFO 顺序正确");
+        //队列已取空，再调 getMessage 应返回 null 而非抛异常
+        Message emptyResult = memoryDataCenter.getMessage(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        Assertions.assertNull(emptyResult);
+        log.info("[testSendMessage] 边界校验通过：队列取空后继续取返回 null");
+        //对从未 sendMessage 的队列直接取消息，应返回 null 而非 NPE
+        Message neverSentResult = memoryDataCenter.getMessage("neverUsedQueue");
+        Assertions.assertNull(neverSentResult);
+        log.info("[testSendMessage] 边界校验通过：从未写入的队列取消息返回 null");
+        //发送消息后总消息表里也应该有记录（sendMessage 内部会调用 insertMessage）
+        Message msgInGlobalTable = memoryDataCenter.getMessageWithId(expectedMessageList.get(0).getMessageId());
+        //消息已经通过 getMessage 取出后从队列链表移走了，但总消息表里仍存在
+        Assertions.assertNotNull(msgInGlobalTable);
+        log.info("[testSendMessage] 总消息表校验通过：sendMessage 同步写入了总消息表");
+        log.info("[testSendMessage] 消息发送测试全部通过！");
+    }
+
+    //测试未被确认的消息
+    @Test
+    public void testAckWithMessage(){
+        Message expectedMessage = createMessage(ConstantForMemoryDataCenterTest.MESSAGE_CONTENT_TEST_1);
+        memoryDataCenter.insertWithAckMessage(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1,expectedMessage);
+        log.info("[testAckWithMessage] 插入未确认消息，queueName={}, messageId={}",
+                ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1, expectedMessage.getMessageId());
+        //获取
+        Message actualMessage = memoryDataCenter
+                .getWithAckMessage(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1, expectedMessage.getMessageId());
+        Assertions.assertEquals(expectedMessage,actualMessage);
+        log.info("[testAckWithMessage] 查询校验通过，引用相同");
+        //删除
+        memoryDataCenter.deleteWithAckMessage(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1,expectedMessage);
+        actualMessage = memoryDataCenter.getWithAckMessage(ConstantForMemoryDataCenterTest
+                .QUEUE_TEST_NAME_1,expectedMessage.getMessageId());
+        Assertions.assertNull(actualMessage);
+        log.info("[testAckWithMessage] 删除后查询为 null，校验通过");
+        //对从未写入未确认消息的队列调用 deleteWithAckMessage，不应抛异常（内部有 null 判断）
+        Assertions.assertDoesNotThrow(() -> memoryDataCenter
+                .deleteWithAckMessage("nonExistQueue", expectedMessage));
+        log.info("[testAckWithMessage] 边界校验通过：删除不存在队列的 ack 消息不抛异常");
+        //对从未写入未确认消息的队列调用 getWithAckMessage，应返回 null
+        Message nonExist = memoryDataCenter.getWithAckMessage("nonExistQueue", "nonExistId");
+        Assertions.assertNull(nonExist);
+        log.info("[testAckWithMessage] 边界校验通过：查询不存在队列的 ack 消息返回 null");
+        log.info("[testAckWithMessage] 未确认消息测试全部通过！");
+    }
+
+    //测试从硬盘恢复数据到内存中
+    @Test
+    public void testRecovery() throws IOException, MQException, ClassNotFoundException {
+        //由于我们后续需要进行数据库的操作，要依赖mybatis，因此要先启动我们的SpringApplication，才可以继续拿后续的数据库操作
+        MessageQueueDemoApplication.context = SpringApplication.run(MessageQueueDemoApplication.class);
+        //在硬盘上构造好数据
+        DiskDataCenter diskDataCenter = new DiskDataCenter();
+        diskDataCenter.init();
+        //往对象中插入数据
+        Exchange expectedExchange = createTestExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        diskDataCenter.insertExchange(expectedExchange);
+        MSGQueue expectedQueue = createTestQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        diskDataCenter.insertQueue(expectedQueue);
+        Bingding expectedBingding = new Bingding();
+        expectedBingding.setExchangeName(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        expectedBingding.setBindingKey(ConstantForMemoryDataCenterTest.BINGIDNG_KEY_TEST_NAME_1);
+        expectedBingding.setQueueName(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        diskDataCenter.insertBingding(expectedBingding);
+        //构造消息
+        Message expectedMessage = createMessage(ConstantForMemoryDataCenterTest.MESSAGE_CONTENT_TEST_1);
+        diskDataCenter.insertMessage(expectedQueue,expectedMessage);
+        log.info("[testRecovery] 硬盘数据准备完成：1 交换机 / 1 队列 / 1 绑定 / 1 消息");
+        //恢复操作
+        memoryDataCenter.recovery(diskDataCenter);
+        log.info("[testRecovery] recovery() 执行完毕，开始校验内存中的数据");
+        //从内存中读取
+        Exchange actualExchange = memoryDataCenter.getExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1);
+        //注意我们不能直接比较引用，因为我们把对象写入了硬盘又拿了出来
+        Assertions.assertNotNull(actualExchange);
+        Assertions.assertEquals(expectedExchange.getName(),actualExchange.getName());
+        Assertions.assertEquals(expectedExchange.getExchangeType(),actualExchange.getExchangeType());
+        Assertions.assertEquals(expectedExchange.getIsDelete(),actualExchange.getIsDelete());
+        Assertions.assertEquals(expectedExchange.getIsPermanent(),actualExchange.getIsPermanent());
+        log.info("[testRecovery] 交换机校验通过：name={}", actualExchange.getName());
+        //针对队列对比
+        MSGQueue actualQueue = memoryDataCenter.getQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        Assertions.assertNotNull(actualQueue);
+        Assertions.assertEquals(expectedQueue.getName(),actualQueue.getName());
+        Assertions.assertEquals(expectedQueue.getIsPermanent(),actualQueue.getIsPermanent());
+        Assertions.assertEquals(expectedQueue.getIsDelete(),actualQueue.getIsDelete());
+        Assertions.assertEquals(expectedQueue.getExclusivel(),actualQueue.getExclusivel());
+        log.info("[testRecovery] 队列校验通过：name={}", actualQueue.getName());
+        //针对绑定关系的对比
+        Bingding acutalBingding = memoryDataCenter
+                .getBingdingOnce(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1,ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        Assertions.assertNotNull(acutalBingding);
+        Assertions.assertEquals(expectedBingding.getExchangeName(),acutalBingding.getExchangeName());
+        Assertions.assertEquals(expectedBingding.getQueueName(),acutalBingding.getQueueName());
+        Assertions.assertEquals(expectedBingding.getBindingKey(),acutalBingding.getBindingKey());
+        log.info("[testRecovery] 绑定关系校验通过：{} -> {}", acutalBingding.getExchangeName(), acutalBingding.getQueueName());
+        //对比消息
+        Message acutalMessage = memoryDataCenter.getMessage(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1);
+        Assertions.assertNotNull(acutalMessage);
+        Assertions.assertEquals(expectedMessage.getMessageId(),acutalMessage.getMessageId());
+        Assertions.assertEquals(expectedMessage.getRoutingKey(),acutalMessage.getRoutingKey());
+        Assertions.assertEquals(expectedMessage.getDeliverMode(),acutalMessage.getDeliverMode());
+        Assertions.assertArrayEquals(expectedMessage.getBody(),acutalMessage.getBody());
+        log.info("[testRecovery] 消息校验通过：messageId={}, body={}",
+                acutalMessage.getMessageId(), new String(acutalMessage.getBody()));
+        //recovery 后再次调用 recovery，内存应该被清空后重新填充（幂等）
+        //二次 recovery 后数据仍然存在且和之前完全一致
+        memoryDataCenter.recovery(diskDataCenter);
+        Assertions.assertNotNull(memoryDataCenter.getExchange(ConstantForMemoryDataCenterTest.EXCHANGE_TEST_NAME_1));
+        Assertions.assertNotNull(memoryDataCenter.getQueue(ConstantForMemoryDataCenterTest.QUEUE_TEST_NAME_1));
+        log.info("[testRecovery] 边界校验通过：重复调用 recovery 是幂等的，数据仍然完整");
+        //关闭应用程序，释放数据库连接！！
+        MessageQueueDemoApplication.context.close();
+        //清理硬盘数据，删除data目录的内容（递归删除）
+        File dataDir = new File("./data");
+        FileUtils.deleteDirectory(dataDir);
+        log.info("[testRecovery] 硬盘数据清理完成，测试全部通过！");
+    }
+}
+```
