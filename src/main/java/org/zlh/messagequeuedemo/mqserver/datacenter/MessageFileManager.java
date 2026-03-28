@@ -44,6 +44,12 @@ public class MessageFileManager {
         public int validCount;
     }
 
+    // 暂时无需做初始化
+    // TODO 后续可以扩展
+    public void init() {
+
+    }
+
     // 获取Stat文件的属性
     // 由于我们的文件是个文本文件，因此我们可以使用Scanner进行读取
     private Stat getStat(String queueName) {
