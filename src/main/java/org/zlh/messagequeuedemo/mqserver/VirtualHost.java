@@ -4,15 +4,13 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.common.utils.router.RouterUtils;
-import org.zlh.messagequeuedemo.mqserver.core.Bingding;
-import org.zlh.messagequeuedemo.mqserver.core.Exchange;
-import org.zlh.messagequeuedemo.mqserver.core.ExchangeTtype;
-import org.zlh.messagequeuedemo.mqserver.core.MSGQueue;
+import org.zlh.messagequeuedemo.mqserver.core.*;
 import org.zlh.messagequeuedemo.mqserver.datacenter.DiskDataCenter;
 import org.zlh.messagequeuedemo.mqserver.datacenter.MemoryDataCenter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author pluchon
@@ -274,5 +272,82 @@ public class VirtualHost {
             log.error("[VirtualHost] 删除绑定关系失败！{}->{}", queueName, exchangeName);
             return false;
         }
+    }
+
+    //发送消息到指定的交换机->队列中
+    public boolean basicPublish(String exchangeName, String routingKey, BasicProperties basicProperties,byte[] body){
+        try {
+            //转换交换机名字
+            exchangeName = virtualHostName+"_"+exchangeName;
+            //检查routingKey合法性
+            if(RouterUtils.checkRoutingKey(routingKey)){
+                throw new MQException("[VirtualHost] routingKey非法->"+routingKey);
+            }
+            //查找交换机对象
+            Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+            if(exchange == null){
+                throw new MQException("[VirtualHost] 交换机不存在->"+exchangeName);
+            }
+            //根据其类型判断要做什么类型的转发
+            ExchangeTtype type = exchange.getExchangeType();
+            if(type == ExchangeTtype.DIRECT){
+                //直接转发，以routingKey作为队列名，把消息写入指定队列(没有绑定没关系)
+                String queueName = virtualHostName+"_"+routingKey;
+                Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                //查找队列对象
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                if(queue == null){
+                    throw new MQException("[VirtualHost] 队列不存在！"+queueName);
+                }
+                //转发消息
+                sendMessage(queue,message);
+                log.info("[VirtualHost] 直接交换机转发成功！{}",exchangeName);
+                return true;
+            }else{
+                //按照fanout和topic转发
+                //找到该交换机关联的所有绑定的队列
+                ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = memoryDataCenter.queryAllBingding(exchangeName);
+                for(Map.Entry<String,Bingding> e : stringBingdingConcurrentHashMap.entrySet()){
+                    //获取绑定对象，判断对嘞是否存在
+                    Bingding bingding = e.getValue();
+                    MSGQueue queue = memoryDataCenter.getQueue(bingding.getQueueName());
+                    //说明当前绑定没有匹配的队列
+                    if(queue == null){
+                        //不抛出异常，可能有多处这样的队列
+                        log.info("[VirtualHost] 队列不存在->"+bingding.getQueueName());
+                        continue;
+                    }
+                    //构造消息
+                    Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                    //判断这个消息能否转发给该队列！
+                    //fanout->所有绑定的队列都转发，topic->校验routingKey与bingdingKey
+                    //校验是否能进行转发，如果是topic要比对bingdingKey和routingKey
+                    if(!RouterUtils.route(type,bingding,message)){
+                        continue;
+                    }
+                    //转发
+                    sendMessage(queue,message);
+                }
+                log.info("[VirtualHost] fanout&topic交换机转发成功！{}",exchangeName);
+                return true;
+            }
+        }catch (Exception e){
+            log.error("[VirtualHost] 消息发送失败->{}",exchangeName);
+            return false;
+        }
+    }
+
+    //发送消息，写入内存与文件中，看消息是否持久化
+    private void sendMessage(MSGQueue queue, Message message) throws MQException, IOException {
+        int deliverMode = message.getDeliverMode();
+        //持久化
+        if(deliverMode == 2){
+            diskDataCenter.insertMessage(queue,message);
+        }
+        //写入内存
+        memoryDataCenter.sendMessage(queue,message);
+
+        //TODO 补充逻辑，通知消费者来消费消息
+
     }
 }

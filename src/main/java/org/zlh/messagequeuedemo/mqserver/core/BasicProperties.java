@@ -15,7 +15,7 @@ public class BasicProperties implements Serializable {
     // 消息的唯一的身份标识，我们使用UUID表示我们的ID唯一性
     private String messageID;
     // 如果交换机是直接交换机->我们表示我们要转发的队列名字
-    // 如果是删除交换机->我们忽略
+    // 如果是扇出交换机->我们忽略
     // 如果是主题交换机，要和我们的主题交换机的BingKey一一对应
     private String routingKey;
     //deliverMode表示我们消息是否要进行持久化
