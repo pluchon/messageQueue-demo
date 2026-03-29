@@ -1,4 +1,4 @@
-# 硅基计划 项目开发日记 模拟实现自定义协议的消息队列  
+# 硅基计划 项目开发日记 模拟实现自定义协议的消息队列
 
 ***
 
@@ -6,16 +6,16 @@
 
 ***
 
-## 一、DAY01  
+## 一、DAY01
 
 ### 1. 整体项目结构预览
 ![image-20260326144229351](https://zlhimage.oss-cn-guangzhou.aliyuncs.com/20260326144229637.png)
 
-### 2. mqservice-core模块  
+### 2. mqservice-core模块
 
-> 注意，我们每个类方法以及属性上都有我们对应的注释，我们这里就不重复了  
+> 注意，我们每个类方法以及属性上都有我们对应的注释，我们这里就不重复了
 
-#### 1. 交换机类  
+#### 1. 交换机类
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
 
@@ -95,7 +95,7 @@ public class Exchange {
 }
 ```
 
-#### 2. 交换机类型的枚举类  
+#### 2. 交换机类型的枚举类
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
 
@@ -122,7 +122,7 @@ public enum ExchangeTtype {
 }
 ```
 
-#### 3. 消息队列的队列主体类  
+#### 3. 消息队列的队列主体类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
@@ -192,7 +192,7 @@ public class MSGQueue {
 }
 ```
 
-#### 4. 绑定关系类  
+#### 4. 绑定关系类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
@@ -219,9 +219,9 @@ public class Bingding {
 }
 ```
 
-#### 5. 消息相关类  
+#### 5. 消息相关类
 
-> 消息的属性类  
+> 消息的属性类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.core;
@@ -339,9 +339,9 @@ public class Message implements Serializable {
 }
 ```
 
-### 3. mqservice-datacenter模块  
+### 3. mqservice-datacenter模块
 
-> 数据库管理类  
+> 数据库管理类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -533,7 +533,7 @@ public interface MetaMapper {
 }
 ```
 
-### 5. 项目启动类  
+### 5. 项目启动类
 
 ```java
 package org.zlh.messagequeuedemo;
@@ -566,33 +566,33 @@ public class MessageQueueDemoApplication {
     <!--  创建交换机表，和我们的交换机类对应  -->
     <update id="createExchangeTable">
         create table if not exists exchange(
-            name varchar(50) primary key ,
-            exchange_type tinyint,
-            is_permanent boolean,
-            is_delete boolean,
-            argument varchar(1024)
+        name varchar(50) primary key ,
+        exchange_type tinyint,
+        is_permanent boolean,
+        is_delete boolean,
+        argument varchar(1024)
         )
     </update>
 
     <!--  创建队列表  -->
     <update id="createQueueTable">
         create table if not exists queue(
-            name varchar(50) primary key ,
-            is_permanent boolean,
-            exclusivel boolean,
-            isDelete boolean,
-            arguments varchar(1024)
+        name varchar(50) primary key ,
+        is_permanent boolean,
+        exclusivel boolean,
+        isDelete boolean,
+        arguments varchar(1024)
         )
     </update>
 
     <!--  创建绑定表  -->
     <update id="createBingdingTable">
         create table if not exists bingding(
-            exchange_name varchar(50),
-            queue_name varchar(50),
-            binding_key varchar(256),
+        exchange_name varchar(50),
+        queue_name varchar(50),
+        binding_key varchar(256),
         <!-- 使用联合主键，避免如果交换机名字重复了，我要绑定其他队列就不成功！ -->
-            primary key (exchange_name, queue_name)
+        primary key (exchange_name, queue_name)
         )
     </update>
 
@@ -637,29 +637,29 @@ public class MessageQueueDemoApplication {
 </mapper>
 ```
 
-### 7. 项目配置模块  
+### 7. 项目配置模块
 
 ```java
 spring:
-  application:
-    name: messageQueue-demo
-  datasource:
-    # 数据文件存储的本地路径，我们SQL组织数据就是把数据存储在我们当前磁盘的一个指定的文件中
+application:
+name: messageQueue-demo
+datasource:
+        # 数据文件存储的本地路径，我们SQL组织数据就是把数据存储在我们当前磁盘的一个指定的文件中
     # 当前我们指定的是什么文件作为我们的数据库文件，基准路径就是我们的当前项目所在的路径（在IDEA中）
-    url: jdbc:sqlite:./data/meta.db
+url: jdbc:sqlite:./data/meta.db
     # 无需用户与密码
-    username:
-    password:
-    driver-class-name: org.sqlite.JDBC
+username:
+password:
+driver-class-name: org.sqlite.JDBC
 
 # mybatis配置
 mybatis:
-  mapper-locations: classpath:mapper/**Mapper.xml
-  configuration:
-    map-underscore-to-camel-case: true
+mapper-locations: classpath:mapper/**Mapper.xml
+ configuration:
+ map-underscore-to-camel-case: true
 ```
 
-### 8. 数据库管理类测试模块  
+### 8. 数据库管理类测试模块
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -932,9 +932,11 @@ class DataBaseManagerTest {
 }
 ```
 
-## 二、DAY02  
+## 二、DAY02
 
-> 完善了消息持久化`MessageFileManager`类，主要是文件IO流  
+### 1. 完善消息持久化
+
+> 完善了消息持久化`MessageFileManager`类，主要是文件IO流
 
 ```java
     //把新的消息放到对应的队列文件中
@@ -1143,7 +1145,9 @@ class DataBaseManagerTest {
 }
 ```
 
-> 定义了新的常量类`ConstantForMessageFileTest`  
+### 2. 消息持久化测试
+
+> 定义了新的常量类`ConstantForMessageFileTest`
 
 ```java
 package org.zlh.messagequeuedemo.common.constant;
@@ -1176,7 +1180,7 @@ public class ConstantForMessageFileTest {
 }
 ```
 
-> 写了`MessageFileManagerTest`的测试类，完善了里面的方法  
+> 写了`MessageFileManagerTest`的测试类，完善了里面的方法
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -1528,7 +1532,7 @@ public class MessageFileManagerTest {
 
 ## 三、DAY03
 
-### 1. 硬盘统一操作集合（数据库&文件）  
+### 1. 硬盘统一操作集合（数据库&文件）
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -1624,7 +1628,7 @@ public class DiskDataCenter {
 }
 ```
 
-### 2. DiskDataCenter对应的测试类  
+### 2. DiskDataCenter对应的测试类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -1939,7 +1943,7 @@ public class DiskDataCenterTest {
 }
 ```
 
-### 3. 统一内存操作集合（内存&加载硬盘内容）  
+### 3. 统一内存操作集合（内存&加载硬盘内容）
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -2202,7 +2206,7 @@ public class MemoryDataCenter {
 
 ### 4. MemoryDataCenter对应的测试类
 
-> 常量类  
+> 常量类
 
 ```java
 package org.zlh.messagequeuedemo.common.constant;
@@ -2226,7 +2230,7 @@ public class ConstantForMemoryDataCenterTest {
 }
 ```
 
-> 测试类  
+> 测试类
 
 ```java
 package org.zlh.messagequeuedemo.mqserver.datacenter;
@@ -2564,6 +2568,781 @@ public class MemoryDataCenterTest {
         File dataDir = new File("./data");
         FileUtils.deleteDirectory(dataDir);
         log.info("[testRecovery] 硬盘数据清理完成，测试全部通过！");
+    }
+}
+```
+
+## 四、DAY04
+
+### 1. 路由规则
+
+> 路由规则工具类
+
+```java
+package org.zlh.messagequeuedemo.common.utils.router;
+
+import lombok.Getter;
+import org.springframework.util.StringUtils;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.Bingding;
+import org.zlh.messagequeuedemo.mqserver.core.ExchangeTtype;
+import org.zlh.messagequeuedemo.mqserver.core.Message;
+
+import java.util.Arrays;
+import java.util.stream.Stream;
+
+/**
+ * @author pluchon
+ * @create 2026-03-29-09:51
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//实现交换机转发规则，借助这个类验证bingdingKey的合法性，这个类就是描述的是路由的规则
+public class RouterUtils {
+    //*->匹配任何一个独立部分，#->可以匹配任何0/多个独立的部分
+
+    //验证bingdingKey的合法性，它是一把锁，携带在交换机中
+    //bingdingKeu组成：1. 数字，字母，下划线组成
+    //2. 我们把routingKey分割多个部分内容，类似于"aaa.bbb.110"
+    //3. 持有两种特殊符号作为通配符（*,#），且是一个独立的字段（被.分割），类似于"aaa.*.bbb"
+    public static boolean checkBingdingkey(String bingdingKey){
+        //空串检查，在直接交换机/删除交换机的时候为空
+        if(!StringUtils.hasLength(bingdingKey)){
+            return true;
+        }
+        //逐一校验
+        for(char ch : bingdingKey.toCharArray()){
+            //检查是不是大写字母，是不是小写字母
+            if(Character.isUpperCase(ch) || Character.isLowerCase(ch)){
+                continue;
+            }
+            //检查是否是阿拉伯数字
+            if(ch >= '0' && ch <= '9'){
+                continue;
+            }
+            //判定是否是下划线和点，检查是否是通配符，且只能占据一个位置
+            if(ch == '_' || ch == '.' || ch == '*' || ch == '#'){
+                continue;
+            }
+            return false;
+        }
+        //检查*和#是否是独立的部分：aaa.*.bbb ✓ aaa.a*.bbb ✕
+        //按照.切割，要转换为正则表达式（"."在正则表达式中是一个特殊符号，但是我们又想让其为一个原始的文本对待，要转义）
+        //而且要在Java中"\."又是特殊字符，因此要再次转义！
+        String[] bingdingKeySplit = bingdingKey.split("\\.");
+        //遍历分段
+        for(String str : bingdingKeySplit){
+            //如果长度>1且包含*和#，则我们定性为非法
+            if(str.length() > 1 && (str.contains("*") || str.contains("#"))){
+                return false;
+            }
+        }
+        //约定通配符之间的相邻关系
+        //1. aaa.#.#.bbb ✕
+        //2. aaa.#.*.bbb ✕
+        //3. aaa.*.#.bbb ✕
+        //TODO 以上三种实现起来太复杂了，而且功能性上提升不大
+        //4. aaa.*.*.bbb ✓
+        for(int i = 0;i < bingdingKeySplit.length-1;i++){
+            //判断是否是连续两个#
+            if((bingdingKeySplit[i].equals("#") && bingdingKeySplit[i+1].equals("#")) ||
+                    (bingdingKeySplit[i].equals("#") && bingdingKeySplit[i+1].equals("*")) ||
+                    (bingdingKeySplit[i].equals("*") && bingdingKeySplit[i+1].equals("#"))){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    //验证routingKey的合法性，它是一把钥匙，携带在消息属性中
+    //routingKeu组成：1. 数字，字母，下划线组成
+    //2. 我们把routingKey分割多个部分内容，类似于"aaa.bbb.110"
+    public static boolean checkRoutingKey(String routingKey){
+        //空串，在使用fanout交换机时候是合法的，设为""
+        if(!StringUtils.hasLength(routingKey)){
+            return true;
+        }
+        //循环逐个校验字符
+        for(char ch : routingKey.toCharArray()){
+            //检查是不是大写字母，是不是小写字母
+            if(Character.isUpperCase(ch) || Character.isLowerCase(ch)){
+                continue;
+            }
+            //检查是否是阿拉伯数字
+            if(ch >= '0' && ch <= '9'){
+                continue;
+            }
+            //判定是否是下划线和点
+            if(ch == '_' || ch == '.'){
+                continue;
+            }
+            //到了这里发现不合法了，因此校验不通过了，该字符非法
+            return false;
+        }
+        //全部校验通过！
+        return true;
+    }
+
+    //验证是否能够转发给这个绑定对应的队列
+    public static boolean route(ExchangeTtype exchangeType, Bingding bingding, Message message) throws MQException {
+        //根据不同exchangeType来判定规则
+        if(exchangeType == ExchangeTtype.FINOUT){
+            return true;
+        }else if(exchangeType == ExchangeTtype.TYPOIC){
+            return routeTopic(bingding,message);
+        }else{
+            //不应该存在！直接交换机我们上层判断过了
+            throw new MQException("[RouterUtils] 交换机类型非法！"+exchangeType);
+        }
+    }
+
+    //主题交换机的转发规则，使用双指针算法
+    /*
+    1. 例子一：bingdingKey:aaa.bbb.ccc,此时必须要求routingKey和我们的bingdingKey必须完全相同！
+    2. 例子二：bingdingKey:aaa.*.ccc，此时routingKey：aaa.bbb.ccc ✓ aaa.b.ccc ✓ aaa.b.b.c ✕
+    3. 例子三：bingdingKey:aaa.#.ccc，此时routingKey：aaa.bbb.ccc ✓ aaa.b.b.c ✓ aaa.ccc ✓ aaa.b.b.b ✕
+    如果bingdingKey是单个#，则可以匹配所有的routingKey，此时topic交换机就变成了fanout交换机了！
+     */
+    private static boolean routeTopic(Bingding bingding, Message message) {
+        String bingdingKey = bingding.getBindingKey();
+        String routingKey = message.getRoutingKey();
+        //切分
+        String[] bingdingKeySplit = bingdingKey.split("\\.");
+        String[] routingKeySplit = routingKey.split("\\.");
+        //定义双指针
+        int pos1 = 0;
+        int pos2 = 0;
+        //遍历比较
+        while(pos1 < bingdingKeySplit.length && pos2 < routingKeySplit.length){
+            //*匹配任意一个字符
+            if(bingdingKeySplit[pos1].equals("*")){
+                pos1++;
+                pos2++;
+                continue;
+            }
+            //#匹配多个字符
+            if(bingdingKeySplit[pos1].equals("#")){
+                //判断bingdingKeySplit的#下一个位置有没有内容
+                pos1++;
+                //这个#可以直接把routingKey剩下全部内容匹配走！
+                if(pos1 == bingdingKeySplit.length){
+                    return true;
+                }
+                //说明后面还有东西，一直往后找，没找到返回-1
+                pos2 = findNextMatch(routingKeySplit,pos2,bingdingKeySplit[pos1]);
+                if(pos2 == -1){
+                    //没找到匹配的结果
+                    return false;
+                }
+                //继续往后匹配
+                pos1++;
+                pos2++;
+                continue;
+            }else{
+                //两个个字符完全相等情况
+                if(!bingdingKeySplit[pos1].equals(routingKeySplit[pos2])){
+                    return false;
+                }
+                pos1++;
+                pos2++;
+            }
+        }
+        //循环结束后看看下标是否都在数组的末尾边界（但凡有一个先到就算失败）
+        return pos1 == bingdingKeySplit.length && pos2 == routingKeySplit.length;
+    }
+
+    //寻找routingKey的指定字符位置
+    private static int findNextMatch(String[] routingKeySplit, int pos, String str) {
+        while(pos < routingKeySplit.length && !routingKeySplit[pos].equals(str)){
+            pos++;
+        }
+        return pos == routingKeySplit.length ? -1 : pos;
+    }
+}
+```
+
+### 2. 路由规则测试
+
+> 路由规则测试类，您也可以补充你的测试用例
+
+```java
+package org.zlh.messagequeuedemo.common.utils.router;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.core.Bingding;
+import org.zlh.messagequeuedemo.mqserver.core.ExchangeTtype;
+import org.zlh.messagequeuedemo.mqserver.core.Message;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * @author pluchon
+ * @create 2026-03-29-17:17
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//侧睡我们的路由规则代码
+@SpringBootTest
+class RouterUtilsTest {
+    // [测试用例]
+    // binding key          routing key         result
+    // aaa                  aaa                 true
+    // aaa.bbb              aaa.bbb             true
+    // aaa.bbb              aaa.bbb.ccc         false
+    // aaa.bbb              aaa.ccc             false
+    // aaa.bbb.ccc          aaa.bbb.ccc         true
+    // aaa.*                aaa.bbb             true
+    // aaa.*.bbb            aaa.bbb.ccc         false
+    // *.aaa.bbb            aaa.bbb             false
+    // #                    aaa.bbb.ccc         true
+    // aaa.#                aaa.bbb             true
+    // aaa.#                aaa.bbb.ccc         true
+    // aaa.#.ccc            aaa.ccc             true
+    // aaa.#.ccc            aaa.bbb.ccc         true
+    // aaa.#.ccc            aaa.aaa.bbb.ccc     true
+    // #.ccc                ccc                 true
+    // #.ccc                aaa.bbb.ccc         true
+
+    private RouterUtils routerUtils = new RouterUtils();
+    private Bingding bingding;
+    private Message message;
+
+    @BeforeEach
+    public void setUp(){
+        //我们只需要测试我们的RoutingKey，不需要其他内容，因子直接new
+        message = new Message();
+        bingding = new Bingding();
+    }
+
+    @AfterEach
+    public void tearDown(){
+        message = null;
+        bingding = null;
+    }
+
+    @Test
+    public void testRouter1() throws MQException {
+        bingding.setBindingKey("aaa");
+        message.setRoutingKey("aaa");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC,bingding,message));
+    }
+
+    @Test
+    public void testRouter2() throws MQException {
+        bingding.setBindingKey("aaa.bbb");
+        message.setRoutingKey("aaa.bbb");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter3() throws MQException {
+        bingding.setBindingKey("aaa.bbb");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertFalse(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter4() throws MQException {
+        bingding.setBindingKey("aaa.bbb");
+        message.setRoutingKey("aaa.ccc");
+        Assertions.assertFalse(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter5() throws MQException {
+        bingding.setBindingKey("aaa.bbb.ccc");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter6() throws MQException {
+        bingding.setBindingKey("aaa.*");
+        message.setRoutingKey("aaa.bbb");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter7() throws MQException {
+        bingding.setBindingKey("aaa.*.bbb");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertFalse(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter8() throws MQException {
+        bingding.setBindingKey("*.aaa.bbb");
+        message.setRoutingKey("aaa.bbb");
+        Assertions.assertFalse(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter9() throws MQException {
+        bingding.setBindingKey("#");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter10() throws MQException {
+        bingding.setBindingKey("aaa.#");
+        message.setRoutingKey("aaa.bbb");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter11() throws MQException {
+        bingding.setBindingKey("aaa.#");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter12() throws MQException {
+        bingding.setBindingKey("aaa.#.ccc");
+        message.setRoutingKey("aaa.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter13() throws MQException {
+        bingding.setBindingKey("aaa.#.ccc");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter14() throws MQException {
+        bingding.setBindingKey("aaa.#.ccc");
+        message.setRoutingKey("aaa.aaa.bbb.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter15() throws MQException {
+        bingding.setBindingKey("#.ccc");
+        message.setRoutingKey("ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter16() throws MQException {
+        bingding.setBindingKey("#.ccc");
+        message.setRoutingKey("aaa.bbb.ccc");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    // ================= 以下为拓展的测试用例 =================
+
+    @Test
+    public void testRouter17() throws MQException {
+        // 测试：全匹配双层星号
+        bingding.setBindingKey("*.*");
+        message.setRoutingKey("aaa.bbb");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter18() throws MQException {
+        // 测试：双层星号长度不匹配
+        bingding.setBindingKey("*.*");
+        message.setRoutingKey("aaa");
+        Assertions.assertFalse(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter19() throws MQException {
+        // 测试：# 是否能匹配0个层级
+        bingding.setBindingKey("aaa.#.bbb");
+        message.setRoutingKey("aaa.bbb");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter20() throws MQException {
+        // 测试：包含多个 # 的情况
+        bingding.setBindingKey("#.aaa.#");
+        message.setRoutingKey("bbb.ccc.aaa.ddd.eee");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter21() throws MQException {
+        // 测试：# 与 * 混合匹配
+        bingding.setBindingKey("*.aaa.#");
+        message.setRoutingKey("bbb.aaa.ccc.ddd");
+        Assertions.assertTrue(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+
+    @Test
+    public void testRouter22() throws MQException {
+        // 测试：# 与 * 混合，但由于星号必须占据一层导致不匹配
+        bingding.setBindingKey("*.aaa.#");
+        message.setRoutingKey("aaa.ccc.ddd");
+        Assertions.assertFalse(RouterUtils.route(ExchangeTtype.TYPOIC, bingding, message));
+    }
+}
+```
+
+### 3. 虚拟主机类
+
+> 虚拟主机类（未完成）
+
+```java
+package org.zlh.messagequeuedemo.mqserver;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.common.utils.router.RouterUtils;
+import org.zlh.messagequeuedemo.mqserver.core.*;
+import org.zlh.messagequeuedemo.mqserver.datacenter.DiskDataCenter;
+import org.zlh.messagequeuedemo.mqserver.datacenter.MemoryDataCenter;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author pluchon
+ *         &#064;create 2026-03-29-08:47
+ *         作者代码水平一般，难免难看，请见谅
+ */
+// 虚拟主机，每个虚拟主机管理自己的交换机，队列，绑定关系，以及消息数据，主要是保证隔离性（不同虚拟主机之间内容没有冲突）
+// 对外提供API供调用，整合内存与硬盘
+// 我们需要对抛出的异常进行处理
+// TODO 目前我们只实现单机，后续多机以及创建/销毁机可以拓展（期望的是不同主机内部有重名的队列名等等）
+@Slf4j
+@Getter
+public class VirtualHost {
+    private String virtualHostName;
+    // 引入内存与硬盘操作，需要我们主动调用初始化操作（建库建表以及示范数据）
+    private DiskDataCenter diskDataCenter = new DiskDataCenter();
+    // 内存中只要new出来已经被初始化了
+    private MemoryDataCenter memoryDataCenter = new MemoryDataCenter();
+
+    //锁对象，加上final保证锁一致性（不同场景下锁不同！）
+    private final Object exchangeLocker = new Object();
+    private final Object queueLocker = new Object();
+
+    //虽然我们锁的粒度很大（比如A交换机操作，B交换机操作就无法执行）
+    //但是我们创建/删除各个模块，属于是低密度的操作，无需频繁的获取锁/释放锁，因此出现线程冲突概率就比较低了
+    //而且我们锁策略只有在我们竞争的时候才进行加锁！
+    //但是注意diskDataCenter和memoryDataCenter的加锁还是有意义的！因为我们这两个类被谁调用是未知的，我们为了稳妥还是加上好！
+
+    public VirtualHost(String virtualHostName) {
+        this.virtualHostName = virtualHostName;
+        diskDataCenter.init();
+        // 从硬盘中恢复数据到内存中
+        try {
+            memoryDataCenter.recovery(diskDataCenter);
+        } catch (MQException | IOException | ClassNotFoundException e) {
+            log.error("[VirtualHost] 恢复内存数据失败！->{}", e.getMessage());
+        }
+    }
+
+    // 核心API1->创建交换机（不存在才创建）
+    // TODO 对于虚拟主机与交换机的从属关系，我们可以定义一对多的表来保存，如果不同主机有重名的直接写会无法插入，因此可以加入前缀
+    // TODO 或者是给每个虚拟主机分配一个不同的数据库文件
+    // 此处为了不麻烦，我们采用 交换机名字 = 虚拟主机名 + 分隔符 + 真实的交换机名字
+    public boolean exchangeDeclare(String exchangeName, ExchangeTtype type, boolean isPermanent, boolean isDelete,
+            Map<String, Object> argument) {
+        // 把交换机名字加上虚拟主机作为前缀
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //考虑多线程
+            synchronized (exchangeLocker) {
+                // 判定该交换机是否已经存在了，我们从内存中查询（硬盘只是为了持久化）
+                Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                // 交换机已经存在
+                if (exchange != null) {
+                    // 也算创建成功
+                    log.info("[VirtualHost] 交换机已经存在->" + exchangeName);
+                    return true;
+                }
+                exchange = new Exchange();
+                exchange.setName(exchangeName);
+                exchange.setIsDelete(isDelete);
+                exchange.setIsPermanent(isPermanent);
+                exchange.setExchangeType(type);
+                exchange.setArgument(argument);
+                // 写入硬盘，必须是持久化为前提，写入硬盘会更容易出现异常情况
+                // 如果硬盘失败了内存直接不写了（反过来还要把内存中的交换机删除，麻烦）
+                if (isPermanent) {
+                    diskDataCenter.insertExchange(exchange);
+                }
+                // 写入内存
+                memoryDataCenter.insertExchange(exchange);
+                log.info("[VirtualHost] 交换机创建完成->{}", exchangeName);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 创建交换机失败->{}", exchangeName);
+            return false;
+        }
+    }
+
+    // 删除交换机
+    public boolean exchangeDelete(String exchangeName) {
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //多线程情况下可能另一个线程创建了这个交换机，会使得情况复杂
+            synchronized (exchangeLocker) {
+                // 找到对应的交换机，从内存中查询
+                Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                if (exchange == null) {
+                    // 找不到
+                    throw new MQException("[VirtualHost] 交换机不存在->" + exchangeName);
+                }
+                // 找得到，我们直接删除交换机，且必须是持久化为前提才可以进行删除
+                if (exchange.getIsPermanent()) {
+                    diskDataCenter.deleteExchange(exchangeName);
+                }
+                // 从内存中删除
+                memoryDataCenter.deleteExchange(exchangeName);
+                log.info("[VirtualHost] 交换机删除成功->{}", exchange);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 删除交换机失败->{}", exchangeName);
+            return false;
+        }
+    }
+
+    // 创建队列
+    public boolean queueDeclare(String queueName, boolean isPermanet, boolean exclusive, boolean isDelete,
+            Map<String, Object> argument) {
+        queueName = virtualHostName + "_" + queueName;
+        try {
+            synchronized (queueLocker) {
+                // 判断是否存在
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                // 队列存在
+                if (queue != null) {
+                    log.info("[VirtualHost] 队列已经存在->{}", queueName);
+                    return true;
+                }
+                // 创建队列对象
+                queue = new MSGQueue();
+                queue.setExclusivel(exclusive);
+                queue.setIsPermanent(isPermanet);
+                queue.setIsDelete(isDelete);
+                queue.setName(queueName);
+                queue.setArguments(argument);
+                // 写入硬盘
+                if (isPermanet) {
+                    diskDataCenter.insertQueue(queue);
+                }
+                // 写入内存
+                memoryDataCenter.insertQueue(queue);
+                log.info("[VirtualHost] 队列创建成功->{}", queueName);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 创建队列失败->{}", queueName);
+            return false;
+        }
+    }
+
+    // 删除队列
+    public boolean queueDelete(String queueName) {
+        queueName = virtualHostName + "_" + queueName;
+        try {
+            synchronized (queueLocker) {
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                // 无法删除
+                if (queue == null) {
+                    throw new MQException("[VirtualHost] 队列不存在，无法删除->" + queueName);
+                }
+                // 可以删除，从硬盘删
+                if (queue.getIsPermanent()) {
+                    diskDataCenter.deleteQueue(queueName);
+                }
+                // 从内存中删除
+                memoryDataCenter.deleteQueue(queueName);
+                log.info("[VirtualHost] 队列删除成功->{}", queueName);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 删除队列失败->{}", queueName);
+            return false;
+        }
+    }
+
+    // 创建绑定关系
+    public boolean bingdingDeclare(String queueName, String exchangeName, String bingdingKey) {
+        queueName = virtualHostName + "_" + queueName;
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //对于绑定关系，只有同时拿到两把锁才可以进行操作，要保证和我们删除操作的加锁顺序一致性
+            //这样才可以尽可能避免死锁
+            synchronized (queueLocker){
+                synchronized (exchangeLocker){
+                    // 查询绑定关系是否已经存在
+                    Bingding bingdingOnce = memoryDataCenter.getBingdingOnce(exchangeName, queueName);
+                    if (bingdingOnce != null) {
+                        log.error("[VirtualHost] 绑定关系已经存在->{}->{}", queueName, exchangeName);
+                        return true;
+                    }
+                    // 验证bingdingKey是否合法
+                    if (!RouterUtils.checkBingdingkey(bingdingKey)) {
+                        throw new MQException("[VirtualHost] bingdingKey非法->" + bingdingKey);
+                    }
+                    // 创建绑定关系
+                    bingdingOnce = new Bingding();
+                    bingdingOnce.setQueueName(queueName);
+                    bingdingOnce.setExchangeName(exchangeName);
+                    bingdingOnce.setBindingKey(bingdingKey);
+                    // 获取到对应的交换机与队列，如果不存在，则绑定关系也是无法创建的
+                    MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                    if (queue == null) {
+                        throw new MQException("[VirtualHost] 要绑定的队列不存在" + queueName);
+                    }
+                    Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                    if (exchange == null) {
+                        throw new MQException("[VirtualHost] 要绑定的交换机不存在" + exchangeName);
+                    }
+                    // 只有都存在了才能插入绑定关系
+                    // 写入硬盘，比如都要持久化
+                    if (queue.getIsPermanent() && exchange.getIsPermanent()) {
+                        diskDataCenter.insertBingding(bingdingOnce);
+                    }
+                    // 写入内存
+                    memoryDataCenter.insertBingding(bingdingOnce);
+                    log.info("[VirtualHost] 绑定关系创建完成->{}<-{}", queueName, exchangeName);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 绑定关系已经存在->{}<-{}", queueName, exchangeName);
+            return false;
+        }
+    }
+
+    // 销毁绑定关系
+    // 注意我们绑定关系涉及到的问题->用户可能先删除队列与交换机，再来删除绑定关系，此时无法删除
+    // TODO 方案一：参考类似MySQL的外键，删除时判定当前队列或交换机是否存在绑定，如果存在则禁止删除队列与交换机（解除绑定，再删除队列与交换机），麻烦！
+    // 方案二：删除时候，不校验交换机与队列是否存在，直接尝试删除（✓），容易！
+    public boolean bingdingDelete(String queueName, String exchangeName) {
+        queueName = virtualHostName + "_" + queueName;
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //保证和我们的呢创建队列的加锁顺序一致性
+            synchronized (queueLocker){
+                synchronized (exchangeLocker){
+                    Bingding bingdingOnce = memoryDataCenter.getBingdingOnce(exchangeName, queueName);
+                    if (bingdingOnce == null) {
+                        throw new MQException("[VirtualHost] 绑定关系不存在！" + queueName + "->" + exchangeName);
+                    }
+                    // 查询对应的队列是否存在
+                    MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                    boolean isQueuePermanent = (queue != null) && queue.getIsPermanent();
+                    /*
+                     * if(queue == null){
+                     * throw new MQException("[VirtualHost] 绑定关系的队列不存在！"+queueName);
+                     * }
+                     */
+                    Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                    boolean isExchangePermanent = (exchange != null) && exchange.getIsPermanent();
+                    /*
+                     * if(exchange == null){
+                     * throw new MQException("[VirtualHost] 绑定关系的交换机不存在！"+exchangeName);
+                     * }
+                     */
+                    // 持久化才能删除
+                    if (isQueuePermanent && isExchangePermanent) {
+                        diskDataCenter.deleteBingding(bingdingOnce);
+                    }
+                    // 从内存中删除
+                    memoryDataCenter.deleteBingding(bingdingOnce);
+                    log.info("[VirtualHost] 绑定关系删除成功！{}->{}", queueName, exchangeName);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 删除绑定关系失败！{}->{}", queueName, exchangeName);
+            return false;
+        }
+    }
+
+    //发送消息到指定的交换机->队列中
+    public boolean basicPublish(String exchangeName, String routingKey, BasicProperties basicProperties,byte[] body){
+        try {
+            //转换交换机名字
+            exchangeName = virtualHostName+"_"+exchangeName;
+            //检查routingKey合法性
+            if(RouterUtils.checkRoutingKey(routingKey)){
+                throw new MQException("[VirtualHost] routingKey非法->"+routingKey);
+            }
+            //查找交换机对象
+            Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+            if(exchange == null){
+                throw new MQException("[VirtualHost] 交换机不存在->"+exchangeName);
+            }
+            //根据其类型判断要做什么类型的转发
+            ExchangeTtype type = exchange.getExchangeType();
+            if(type == ExchangeTtype.DIRECT){
+                //直接转发，以routingKey作为队列名，把消息写入指定队列(没有绑定没关系)
+                String queueName = virtualHostName+"_"+routingKey;
+                Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                //查找队列对象
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                if(queue == null){
+                    throw new MQException("[VirtualHost] 队列不存在！"+queueName);
+                }
+                //转发消息
+                sendMessage(queue,message);
+                log.info("[VirtualHost] 直接交换机转发成功！{}",exchangeName);
+                return true;
+            }else{
+                //按照fanout和topic转发
+                //找到该交换机关联的所有绑定的队列
+                ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = memoryDataCenter.queryAllBingding(exchangeName);
+                for(Map.Entry<String,Bingding> e : stringBingdingConcurrentHashMap.entrySet()){
+                    //获取绑定对象，判断对嘞是否存在
+                    Bingding bingding = e.getValue();
+                    MSGQueue queue = memoryDataCenter.getQueue(bingding.getQueueName());
+                    //说明当前绑定没有匹配的队列
+                    if(queue == null){
+                        //不抛出异常，可能有多处这样的队列
+                        log.info("[VirtualHost] 队列不存在->"+bingding.getQueueName());
+                        continue;
+                    }
+                    //构造消息
+                    Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                    //判断这个消息能否转发给该队列！
+                    //fanout->所有绑定的队列都转发，topic->校验routingKey与bingdingKey
+                    //校验是否能进行转发，如果是topic要比对bingdingKey和routingKey
+                    if(!RouterUtils.route(type,bingding,message)){
+                        continue;
+                    }
+                    //转发
+                    sendMessage(queue,message);
+                }
+                log.info("[VirtualHost] fanout&topic交换机转发成功！{}",exchangeName);
+                return true;
+            }
+        }catch (Exception e){
+            log.error("[VirtualHost] 消息发送失败->{}",exchangeName);
+            return false;
+        }
+    }
+
+    //发送消息，写入内存与文件中，看消息是否持久化
+    private void sendMessage(MSGQueue queue, Message message) throws MQException, IOException {
+        int deliverMode = message.getDeliverMode();
+        //持久化
+        if(deliverMode == 2){
+            diskDataCenter.insertMessage(queue,message);
+        }
+        //写入内存
+        memoryDataCenter.sendMessage(queue,message);
+
+        //TODO 补充逻辑，通知消费者来消费消息
+
     }
 }
 ```
