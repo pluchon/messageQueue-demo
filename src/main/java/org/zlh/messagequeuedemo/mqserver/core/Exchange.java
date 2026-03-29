@@ -56,6 +56,11 @@ public class Exchange {
         }
     }
 
+    //传Map
+    public void setArgument(Map<String,Object> argument){
+        this.argument = argument;
+    }
+
     //代码内部使用方便，例如编写测试用例
 
     //再提供一组argument的get与set用来更好地获取与设置键值对

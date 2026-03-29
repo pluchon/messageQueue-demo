@@ -45,6 +45,11 @@ public class MSGQueue {
         }
     }
 
+    //传入Map
+    public void setArguments(Map<String,Object> arguments){
+        this.arguments = arguments;
+    }
+
     // 将当前 arguments 以 JSON 格式写入数据库（MyBatis #{arguments} 会调用此方法）
     public String getArguments() {
         try {
