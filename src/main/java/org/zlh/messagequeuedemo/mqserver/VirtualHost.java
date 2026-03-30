@@ -2,6 +2,7 @@ package org.zlh.messagequeuedemo.mqserver;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.zlh.messagequeuedemo.common.consumer.Consumer;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.common.utils.router.RouterUtils;
 import org.zlh.messagequeuedemo.mqserver.core.*;
@@ -29,6 +30,10 @@ public class VirtualHost {
     private DiskDataCenter diskDataCenter = new DiskDataCenter();
     // 内存中只要new出来已经被初始化了
     private MemoryDataCenter memoryDataCenter = new MemoryDataCenter();
+    //持有我们消费者管理类的实例，同样的消费者管理类也持有我们的实例
+    //这样我们就可以让ConsumerManager作为我们的成员存在，同时ConsumerManager又可以调用我们这个类的方法
+    //方便去操作内存与硬盘，而且我们在实例化对象的时候把当前的VirtualHost也传入进去
+    private ConsumerManager consumerManager = new ConsumerManager(this);
 
     //锁对象，加上final保证锁一致性（不同场景下锁不同！）
     private final Object exchangeLocker = new Object();
@@ -280,7 +285,7 @@ public class VirtualHost {
             //转换交换机名字
             exchangeName = virtualHostName+"_"+exchangeName;
             //检查routingKey合法性
-            if(RouterUtils.checkRoutingKey(routingKey)){
+            if(!RouterUtils.checkRoutingKey(routingKey)){
                 throw new MQException("[VirtualHost] routingKey非法->"+routingKey);
             }
             //查找交换机对象
@@ -338,7 +343,7 @@ public class VirtualHost {
     }
 
     //发送消息，写入内存与文件中，看消息是否持久化
-    private void sendMessage(MSGQueue queue, Message message) throws MQException, IOException {
+    private void sendMessage(MSGQueue queue, Message message) throws MQException, IOException, InterruptedException {
         int deliverMode = message.getDeliverMode();
         //持久化
         if(deliverMode == 2){
@@ -346,8 +351,51 @@ public class VirtualHost {
         }
         //写入内存
         memoryDataCenter.sendMessage(queue,message);
+        //通知消费者来消费消息
+        consumerManager.notifyConsumeMessage(queue.getName());
+    }
 
-        //TODO 补充逻辑，通知消费者来消费消息
+    //订阅消息，添加一个队列的消费者，当队列收到消息之后推送到对应的订阅者（我们靠“推”，也就是队列收到消息后主动给消费者）
+    //consumerType->消费者的身份标识，queueName->队列名字，qutoAck->应答方式（也就是消息消费之后，true->自动应答，false->手动告诉队列应答成功）
+    //consumer->函数式接口：收到消息后调用consumer这个函数，之后我们传实参就可以传lambda了
+    //因为一个队列可以有多个消费者，为了避免同时取冲突，因此我们采用消费者轮流来（轮询）的方式取就好了
+    public boolean basicConsume(String consumerTag, String queueName, boolean autoAck, Consumer consumer){
+        queueName = virtualHostName+"_"+queueName;
+        try {
+            consumerManager.addConsumer(consumerTag,queueName,autoAck,consumer);
+            log.info("[VirtualHost] 订阅消息成功！{}",queueName);
+            return true;
+        }catch (Exception e){
+            log.error("[VirtualHost] 订阅消息失败！{}",queueName);
+            return false;
+        }
+    }
 
+    //主动应答
+    public boolean basicAck(String queueName,String messageId){
+        queueName = virtualHostName+"_"+queueName;
+        try {
+            Message message = memoryDataCenter.getMessageWithId(messageId);
+            if(message == null){
+                throw new MQException("[VirtualHost] 要确认的消息不存在！"+messageId);
+            }
+            MSGQueue queue = memoryDataCenter.getQueue(queueName);
+            if(queue == null){
+                throw new MQException("[VirtualHost] 要确认的队列不存在！"+queueName);
+            }
+            //删除硬盘数据
+            if(message.getDeliverMode() == 2){
+                diskDataCenter.deleteMessage(queue,message);
+            }
+            //删除消息中心
+            memoryDataCenter.deleteMessage(messageId);
+            //删除待确认集合
+            memoryDataCenter.deleteWithAckMessage(queueName,message);
+            log.info("[VirtualHost] 消费者主动应答消费消息成功！");
+            return true;
+        }catch (Exception e){
+            log.error("[VirtualHost] 消费者主动应答消费消息失败！{}->{}",queueName,messageId);
+            return false;
+        }
     }
 }

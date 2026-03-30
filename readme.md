@@ -3346,3 +3346,1268 @@ public class VirtualHost {
     }
 }
 ```
+
+## 五、DAY05  
+### 1. 定义消费者的函数式接口  
+
+```java
+package org.zlh.messagequeuedemo.common.consumer;
+
+import org.zlh.messagequeuedemo.mqserver.core.BasicProperties;
+
+/**
+ * @author pluchon
+ * @create 2026-03-30-08:40
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//函数是接口，只能定义一个方法（回调函数）
+@FunctionalInterface
+public interface Consumer {
+    //处理消息投递，即在每次收到消息后被调用
+    //当我们的消费者消费到消息之后，通过参数可以进行传递，从而处理此回调函数
+    void handleDelivery(String consumerType, BasicProperties basicProperties,byte[] body);
+}
+```
+
+### 2. 定义消费者类  
+
+```java
+package org.zlh.messagequeuedemo.common.consumer;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+/**
+ * @author pluchon
+ * @create 2026-03-30-08:55
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//消费者属性与方法
+@Data
+@AllArgsConstructor
+public class ConsumerEnv {
+    //消费者标识
+    private String consumerTag;
+    //消费者所要订阅的队列
+    private String queueName;
+    //当前这个订阅是否需要手动应答
+    private boolean autoAck;
+    //收到消息后回调函数来处理我们收到的消息
+    //一旦有消息发过来，我们就会触发这个接口，拿到我们的消息
+    private Consumer consumer;
+}
+```
+
+### 3. 消费者管理类
+
+```java
+package org.zlh.messagequeuedemo.mqserver.core;
+
+import lombok.extern.slf4j.Slf4j;
+import org.zlh.messagequeuedemo.common.constant.ConstantForConsumerManagerTest;
+import org.zlh.messagequeuedemo.common.consumer.Consumer;
+import org.zlh.messagequeuedemo.common.consumer.ConsumerEnv;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.mqserver.VirtualHost;
+
+import java.util.concurrent.*;
+
+/**
+ * @author pluchon
+ * @create 2026-03-30-10:21
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//通过这个类实现消费消息核心逻辑，也就是管理我们的消费者
+@Slf4j
+public class ConsumerManager {
+    //持有虚拟主机实例，方便操作内存与硬盘
+    private VirtualHost virtualHost;
+    //指定一个线程池，执行具体的任务，消费我们的消息，固定线程数量4个
+    private ExecutorService works = Executors.newFixedThreadPool(ConstantForConsumerManagerTest.FIX_POLL_SIZE);
+    //存放令牌的队列（为了避免我们一个队列的消息太多导致卡顿，我们把队列的名字作为令牌，然后每一次取一条消息取消费）
+    private BlockingQueue<String> blockingQueueForQueueName = new LinkedBlockingQueue<>();
+    //扫描线程，看看哪个队列有新的消息了
+    private Thread scnannerThread;
+
+    //提供虚拟主机初始化
+    public ConsumerManager(VirtualHost virtualHost) {
+        this.virtualHost = virtualHost;
+    }
+
+    //通知进行消费，也就是把令牌放入阻塞队列中
+    public void notifyConsumeMessage(String queueName) throws InterruptedException {
+        blockingQueueForQueueName.put(queueName);
+        scnannerThread = new Thread(() -> {
+            try {
+                //一直扫描不停
+                while (true) {
+                    //获取我们的令牌
+                    String queueNameForBlocking = blockingQueueForQueueName.take();
+                    //获取队列
+                    MSGQueue queue = virtualHost.getMemoryDataCenter().getQueue(queueName);
+                    //看看是否存在
+                    if (queue == null) {
+                        throw new MQException("[ConsumerManager] 获取队列令牌的时候，队列不存在！" + queueName);
+                    }
+                    //消费消息，保证原子性！！
+                    //因为其他队列也可能正在消费我们的消息
+                    synchronized (queue) {
+                        consumeMessage(queue);
+                    }
+                }
+            } catch (InterruptedException | MQException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        //设为后台线程（不会影响整个前台进程的结束状态）
+        scnannerThread.setDaemon(true);
+        scnannerThread.start();
+    }
+
+    //订阅消息，新增消费者对象到我们的队列中
+    public void addConsumer(String consumerTag, String queueName, boolean autoAck, Consumer consumer) throws MQException {
+        //寻找我们的对应的duilie
+        MSGQueue queue = virtualHost.getMemoryDataCenter().getQueue(queueName);
+        //看是否存在
+        if (queue == null) {
+            throw new MQException("[ConsumerManager] 查找队列失败！" + queueName);
+        }
+        //创建我们的消费者的实例
+        ConsumerEnv consumerEnv = new ConsumerEnv(consumerTag, queueName, autoAck, consumer);
+        //加锁
+        synchronized (queue) {
+            queue.addConsumerEnvList(consumerEnv);
+            //注意如果我们队列中已经有了消息，则我们要进行全部消费
+            int countMessage = virtualHost.getMemoryDataCenter().getQueueMessageCount(queueName);
+            for (int i = 0; i < countMessage; i++) {
+                //消费消息
+                consumeMessage(queue);
+            }
+        }
+    }
+
+    //消费消息
+    private void consumeMessage(MSGQueue queue) {
+        //轮询的方式选取一个消费者
+        ConsumerEnv consumerEnv = queue.selectConsumer();
+        //当前队列没有消费者，不消费，等后面再说
+        if (consumerEnv == null) {
+            log.info("[ConsumerManager] 队列中暂时没有消费者！{}", queue.getName());
+            return;
+        }
+        //从队列中取出一个消息
+        Message message = virtualHost.getMemoryDataCenter().getMessage(queue.getName());
+        //消息不存在
+        if (message == null) {
+            log.info("[ConsumerManager] 消息不存在！{}", queue.getName());
+            return;
+        }
+        //把消息带入到消费者的回调方法中，丢给线程池执行
+        works.submit(() -> {
+            try {
+                //不知道这个消息是不是真的被消费完毕了，可能会抛出异常，为了防止我们的消息丢失，我们可以采取一些措施
+                //1. 放入ACK队列中，防止消息丢失
+                //2. 执行回调
+                //3. 如果当前消费者采取的是autoAck=true，认为回调执行完毕不抛出异常就算消费成功了！（删除硬盘上，删除内存上消息中心，删除ACK队列上）
+                //反之，此时就属于手动应答，需要消费者这边在自己的回调方法内部显示调用basicAck
+                virtualHost.getMemoryDataCenter().insertWithAckMessage(queue.getName(), message);
+                //注意如果我们回调函数产生了异常，我们的后续逻辑就执行不到了，会导致这个消息始终在ack队列集合中
+                //如果按照rabbitMQ的做法，可以搞一个扫描线程，判定消息在ack队列集合中存在了多久，如果超出了范围，则放入一个死信队列中
+                //TODO 我们此处暂时先不实现死信队列，这个是我们创建队列的时候进行配置的
+                //如果我们执行回调的时候程序崩溃了，会导致内存数据全没但硬盘数据还在，我们正在消费到消息在硬盘中存在
+                //当我们程序重启之后，这个消息又被加载回内存了，会像重来没有消费到，消费者可能会有机会再次消费到这个消息
+                //TODO 这个问题我们应该由消费者的业务代码考虑，我们brokerService不保证也不管了
+                consumerEnv.getConsumer().handleDelivery(consumerEnv.getConsumerTag(), message.getBasicProperties(), message.getBody());
+                //确认应答类型
+                //手动应答暂时不去处理，让消费者手动调用basicAck处理
+                if (consumerEnv.isAutoAck()) {
+                    //删除硬盘消息，先看看是不是持久化的
+                    if (message.getDeliverMode() == 1) {
+                        virtualHost.getDiskDataCenter().deleteMessage(queue, message);
+                    }
+                    //删除内存的待确认ACK消息
+                    virtualHost.getMemoryDataCenter().deleteWithAckMessage(queue.getName(), message);
+                    //删除消息中心集合的消息
+                    virtualHost.getMemoryDataCenter().deleteMessage(message.getMessageId());
+                    log.info("[ConsumerManager] 消息被成功消费了！{}", queue.getName());
+                }
+            } catch (Exception e) {
+                log.error("[ConsumerManager] 消息消费失败！{}", queue.getName());
+            }
+        });
+    }
+}
+```
+
+### 4. 消费者管理的常量类  
+
+```java
+package org.zlh.messagequeuedemo.common.constant;
+
+/**
+ * @author pluchon
+ * @create 2026-03-30-10:28
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//消费者的常量管理
+public class ConsumerManagerConstant {
+    //固定大小线程池的数量
+    public static final int FIX_POLL_SIZE = 4;
+}
+```
+
+### 5. 进一步完善了虚拟主机类，使其业务逻辑闭环  
+
+> 以下是完整的虚拟主机类全部内容
+
+```java
+package org.zlh.messagequeuedemo.mqserver;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.zlh.messagequeuedemo.common.consumer.Consumer;
+import org.zlh.messagequeuedemo.common.exception.MQException;
+import org.zlh.messagequeuedemo.common.utils.router.RouterUtils;
+import org.zlh.messagequeuedemo.mqserver.core.*;
+import org.zlh.messagequeuedemo.mqserver.datacenter.DiskDataCenter;
+import org.zlh.messagequeuedemo.mqserver.datacenter.MemoryDataCenter;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author pluchon
+ *         &#064;create 2026-03-29-08:47
+ *         作者代码水平一般，难免难看，请见谅
+ */
+// 虚拟主机，每个虚拟主机管理自己的交换机，队列，绑定关系，以及消息数据，主要是保证隔离性（不同虚拟主机之间内容没有冲突）
+// 对外提供API供调用，整合内存与硬盘
+// 我们需要对抛出的异常进行处理
+// TODO 目前我们只实现单机，后续多机以及创建/销毁机可以拓展（期望的是不同主机内部有重名的队列名等等）
+@Slf4j
+@Getter
+public class VirtualHost {
+    private String virtualHostName;
+    // 引入内存与硬盘操作，需要我们主动调用初始化操作（建库建表以及示范数据）
+    private DiskDataCenter diskDataCenter = new DiskDataCenter();
+    // 内存中只要new出来已经被初始化了
+    private MemoryDataCenter memoryDataCenter = new MemoryDataCenter();
+    //持有我们消费者管理类的实例，同样的消费者管理类也持有我们的实例
+    //这样我们就可以让ConsumerManager作为我们的成员存在，同时ConsumerManager又可以调用我们这个类的方法
+    //方便去操作内存与硬盘，而且我们在实例化对象的时候把当前的VirtualHost也传入进去
+    private ConsumerManager consumerManager = new ConsumerManager(this);
+
+    //锁对象，加上final保证锁一致性（不同场景下锁不同！）
+    private final Object exchangeLocker = new Object();
+    private final Object queueLocker = new Object();
+
+    //虽然我们锁的粒度很大（比如A交换机操作，B交换机操作就无法执行）
+    //但是我们创建/删除各个模块，属于是低密度的操作，无需频繁的获取锁/释放锁，因此出现线程冲突概率就比较低了
+    //而且我们锁策略只有在我们竞争的时候才进行加锁！
+    //但是注意diskDataCenter和memoryDataCenter的加锁还是有意义的！因为我们这两个类被谁调用是未知的，我们为了稳妥还是加上好！
+
+    public VirtualHost(String virtualHostName) {
+        this.virtualHostName = virtualHostName;
+        diskDataCenter.init();
+        // 从硬盘中恢复数据到内存中
+        try {
+            memoryDataCenter.recovery(diskDataCenter);
+        } catch (MQException | IOException | ClassNotFoundException e) {
+            log.error("[VirtualHost] 恢复内存数据失败！->{}", e.getMessage());
+        }
+    }
+
+    // 核心API1->创建交换机（不存在才创建）
+    // TODO 对于虚拟主机与交换机的从属关系，我们可以定义一对多的表来保存，如果不同主机有重名的直接写会无法插入，因此可以加入前缀
+    // TODO 或者是给每个虚拟主机分配一个不同的数据库文件
+    // 此处为了不麻烦，我们采用 交换机名字 = 虚拟主机名 + 分隔符 + 真实的交换机名字
+    public boolean exchangeDeclare(String exchangeName, ExchangeTtype type, boolean isPermanent, boolean isDelete,
+            Map<String, Object> argument) {
+        // 把交换机名字加上虚拟主机作为前缀
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //考虑多线程
+            synchronized (exchangeLocker) {
+                // 判定该交换机是否已经存在了，我们从内存中查询（硬盘只是为了持久化）
+                Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                // 交换机已经存在
+                if (exchange != null) {
+                    // 也算创建成功
+                    log.info("[VirtualHost] 交换机已经存在->" + exchangeName);
+                    return true;
+                }
+                exchange = new Exchange();
+                exchange.setName(exchangeName);
+                exchange.setIsDelete(isDelete);
+                exchange.setIsPermanent(isPermanent);
+                exchange.setExchangeType(type);
+                exchange.setArgument(argument);
+                // 写入硬盘，必须是持久化为前提，写入硬盘会更容易出现异常情况
+                // 如果硬盘失败了内存直接不写了（反过来还要把内存中的交换机删除，麻烦）
+                if (isPermanent) {
+                    diskDataCenter.insertExchange(exchange);
+                }
+                // 写入内存
+                memoryDataCenter.insertExchange(exchange);
+                log.info("[VirtualHost] 交换机创建完成->{}", exchangeName);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 创建交换机失败->{}", exchangeName);
+            return false;
+        }
+    }
+
+    // 删除交换机
+    public boolean exchangeDelete(String exchangeName) {
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //多线程情况下可能另一个线程创建了这个交换机，会使得情况复杂
+            synchronized (exchangeLocker) {
+                // 找到对应的交换机，从内存中查询
+                Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                if (exchange == null) {
+                    // 找不到
+                    throw new MQException("[VirtualHost] 交换机不存在->" + exchangeName);
+                }
+                // 找得到，我们直接删除交换机，且必须是持久化为前提才可以进行删除
+                if (exchange.getIsPermanent()) {
+                    diskDataCenter.deleteExchange(exchangeName);
+                }
+                // 从内存中删除
+                memoryDataCenter.deleteExchange(exchangeName);
+                log.info("[VirtualHost] 交换机删除成功->{}", exchange);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 删除交换机失败->{}", exchangeName);
+            return false;
+        }
+    }
+
+    // 创建队列
+    public boolean queueDeclare(String queueName, boolean isPermanet, boolean exclusive, boolean isDelete,
+            Map<String, Object> argument) {
+        queueName = virtualHostName + "_" + queueName;
+        try {
+            synchronized (queueLocker) {
+                // 判断是否存在
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                // 队列存在
+                if (queue != null) {
+                    log.info("[VirtualHost] 队列已经存在->{}", queueName);
+                    return true;
+                }
+                // 创建队列对象
+                queue = new MSGQueue();
+                queue.setExclusivel(exclusive);
+                queue.setIsPermanent(isPermanet);
+                queue.setIsDelete(isDelete);
+                queue.setName(queueName);
+                queue.setArguments(argument);
+                // 写入硬盘
+                if (isPermanet) {
+                    diskDataCenter.insertQueue(queue);
+                }
+                // 写入内存
+                memoryDataCenter.insertQueue(queue);
+                log.info("[VirtualHost] 队列创建成功->{}", queueName);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 创建队列失败->{}", queueName);
+            return false;
+        }
+    }
+
+    // 删除队列
+    public boolean queueDelete(String queueName) {
+        queueName = virtualHostName + "_" + queueName;
+        try {
+            synchronized (queueLocker) {
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                // 无法删除
+                if (queue == null) {
+                    throw new MQException("[VirtualHost] 队列不存在，无法删除->" + queueName);
+                }
+                // 可以删除，从硬盘删
+                if (queue.getIsPermanent()) {
+                    diskDataCenter.deleteQueue(queueName);
+                }
+                // 从内存中删除
+                memoryDataCenter.deleteQueue(queueName);
+                log.info("[VirtualHost] 队列删除成功->{}", queueName);
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 删除队列失败->{}", queueName);
+            return false;
+        }
+    }
+
+    // 创建绑定关系
+    public boolean bingdingDeclare(String queueName, String exchangeName, String bingdingKey) {
+        queueName = virtualHostName + "_" + queueName;
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //对于绑定关系，只有同时拿到两把锁才可以进行操作，要保证和我们删除操作的加锁顺序一致性
+            //这样才可以尽可能避免死锁
+            synchronized (queueLocker){
+                synchronized (exchangeLocker){
+                    // 查询绑定关系是否已经存在
+                    Bingding bingdingOnce = memoryDataCenter.getBingdingOnce(exchangeName, queueName);
+                    if (bingdingOnce != null) {
+                        log.error("[VirtualHost] 绑定关系已经存在->{}->{}", queueName, exchangeName);
+                        return true;
+                    }
+                    // 验证bingdingKey是否合法
+                    if (!RouterUtils.checkBingdingkey(bingdingKey)) {
+                        throw new MQException("[VirtualHost] bingdingKey非法->" + bingdingKey);
+                    }
+                    // 创建绑定关系
+                    bingdingOnce = new Bingding();
+                    bingdingOnce.setQueueName(queueName);
+                    bingdingOnce.setExchangeName(exchangeName);
+                    bingdingOnce.setBindingKey(bingdingKey);
+                    // 获取到对应的交换机与队列，如果不存在，则绑定关系也是无法创建的
+                    MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                    if (queue == null) {
+                        throw new MQException("[VirtualHost] 要绑定的队列不存在" + queueName);
+                    }
+                    Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                    if (exchange == null) {
+                        throw new MQException("[VirtualHost] 要绑定的交换机不存在" + exchangeName);
+                    }
+                    // 只有都存在了才能插入绑定关系
+                    // 写入硬盘，比如都要持久化
+                    if (queue.getIsPermanent() && exchange.getIsPermanent()) {
+                        diskDataCenter.insertBingding(bingdingOnce);
+                    }
+                    // 写入内存
+                    memoryDataCenter.insertBingding(bingdingOnce);
+                    log.info("[VirtualHost] 绑定关系创建完成->{}<-{}", queueName, exchangeName);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 绑定关系已经存在->{}<-{}", queueName, exchangeName);
+            return false;
+        }
+    }
+
+    // 销毁绑定关系
+    // 注意我们绑定关系涉及到的问题->用户可能先删除队列与交换机，再来删除绑定关系，此时无法删除
+    // TODO 方案一：参考类似MySQL的外键，删除时判定当前队列或交换机是否存在绑定，如果存在则禁止删除队列与交换机（解除绑定，再删除队列与交换机），麻烦！
+    // 方案二：删除时候，不校验交换机与队列是否存在，直接尝试删除（✓），容易！
+    public boolean bingdingDelete(String queueName, String exchangeName) {
+        queueName = virtualHostName + "_" + queueName;
+        exchangeName = virtualHostName + "_" + exchangeName;
+        try {
+            //保证和我们的呢创建队列的加锁顺序一致性
+            synchronized (queueLocker){
+                synchronized (exchangeLocker){
+                    Bingding bingdingOnce = memoryDataCenter.getBingdingOnce(exchangeName, queueName);
+                    if (bingdingOnce == null) {
+                        throw new MQException("[VirtualHost] 绑定关系不存在！" + queueName + "->" + exchangeName);
+                    }
+                    // 查询对应的队列是否存在
+                    MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                    boolean isQueuePermanent = (queue != null) && queue.getIsPermanent();
+                    /*
+                     * if(queue == null){
+                     * throw new MQException("[VirtualHost] 绑定关系的队列不存在！"+queueName);
+                     * }
+                     */
+                    Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+                    boolean isExchangePermanent = (exchange != null) && exchange.getIsPermanent();
+                    /*
+                     * if(exchange == null){
+                     * throw new MQException("[VirtualHost] 绑定关系的交换机不存在！"+exchangeName);
+                     * }
+                     */
+                    // 持久化才能删除
+                    if (isQueuePermanent && isExchangePermanent) {
+                        diskDataCenter.deleteBingding(bingdingOnce);
+                    }
+                    // 从内存中删除
+                    memoryDataCenter.deleteBingding(bingdingOnce);
+                    log.info("[VirtualHost] 绑定关系删除成功！{}->{}", queueName, exchangeName);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.error("[VirtualHost] 删除绑定关系失败！{}->{}", queueName, exchangeName);
+            return false;
+        }
+    }
+
+    //发送消息到指定的交换机->队列中
+    public boolean basicPublish(String exchangeName, String routingKey, BasicProperties basicProperties,byte[] body){
+        try {
+            //转换交换机名字
+            exchangeName = virtualHostName+"_"+exchangeName;
+            //检查routingKey合法性
+            if(RouterUtils.checkRoutingKey(routingKey)){
+                throw new MQException("[VirtualHost] routingKey非法->"+routingKey);
+            }
+            //查找交换机对象
+            Exchange exchange = memoryDataCenter.getExchange(exchangeName);
+            if(exchange == null){
+                throw new MQException("[VirtualHost] 交换机不存在->"+exchangeName);
+            }
+            //根据其类型判断要做什么类型的转发
+            ExchangeTtype type = exchange.getExchangeType();
+            if(type == ExchangeTtype.DIRECT){
+                //直接转发，以routingKey作为队列名，把消息写入指定队列(没有绑定没关系)
+                String queueName = virtualHostName+"_"+routingKey;
+                Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                //查找队列对象
+                MSGQueue queue = memoryDataCenter.getQueue(queueName);
+                if(queue == null){
+                    throw new MQException("[VirtualHost] 队列不存在！"+queueName);
+                }
+                //转发消息
+                sendMessage(queue,message);
+                log.info("[VirtualHost] 直接交换机转发成功！{}",exchangeName);
+                return true;
+            }else{
+                //按照fanout和topic转发
+                //找到该交换机关联的所有绑定的队列
+                ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = memoryDataCenter.queryAllBingding(exchangeName);
+                for(Map.Entry<String,Bingding> e : stringBingdingConcurrentHashMap.entrySet()){
+                    //获取绑定对象，判断对嘞是否存在
+                    Bingding bingding = e.getValue();
+                    MSGQueue queue = memoryDataCenter.getQueue(bingding.getQueueName());
+                    //说明当前绑定没有匹配的队列
+                    if(queue == null){
+                        //不抛出异常，可能有多处这样的队列
+                        log.info("[VirtualHost] 队列不存在->"+bingding.getQueueName());
+                        continue;
+                    }
+                    //构造消息
+                    Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                    //判断这个消息能否转发给该队列！
+                    //fanout->所有绑定的队列都转发，topic->校验routingKey与bingdingKey
+                    //校验是否能进行转发，如果是topic要比对bingdingKey和routingKey
+                    if(!RouterUtils.route(type,bingding,message)){
+                        continue;
+                    }
+                    //转发
+                    sendMessage(queue,message);
+                }
+                log.info("[VirtualHost] fanout&topic交换机转发成功！{}",exchangeName);
+                return true;
+            }
+        }catch (Exception e){
+            log.error("[VirtualHost] 消息发送失败->{}",exchangeName);
+            return false;
+        }
+    }
+
+    //发送消息，写入内存与文件中，看消息是否持久化
+    private void sendMessage(MSGQueue queue, Message message) throws MQException, IOException, InterruptedException {
+        int deliverMode = message.getDeliverMode();
+        //持久化
+        if(deliverMode == 2){
+            diskDataCenter.insertMessage(queue,message);
+        }
+        //写入内存
+        memoryDataCenter.sendMessage(queue,message);
+        //通知消费者来消费消息
+        consumerManager.notifyConsumeMessage(queue.getName());
+    }
+
+    //订阅消息，添加一个队列的消费者，当队列收到消息之后推送到对应的订阅者（我们靠“推”，也就是队列收到消息后主动给消费者）
+    //consumerType->消费者的身份标识，queueName->队列名字，qutoAck->应答方式（也就是消息消费之后，true->自动应答，false->手动告诉队列应答成功）
+    //consumer->函数式接口：收到消息后调用consumer这个函数，之后我们传实参就可以传lambda了
+    //因为一个队列可以有多个消费者，为了避免同时取冲突，因此我们采用消费者轮流来（轮询）的方式取就好了
+    public boolean basicConsume(String consumerTag, String queueName, boolean autoAck, Consumer consumer){
+        queueName = virtualHostName+"_"+queueName;
+        try {
+            consumerManager.addConsumer(consumerTag,queueName,autoAck,consumer);
+            log.info("[VirtualHost] 订阅消息成功！{}",queueName);
+            return true;
+        }catch (Exception e){
+            log.error("[VirtualHost] 订阅消息失败！{}",queueName);
+            return false;
+        }
+    }
+
+    //主动应答
+    public boolean basicAck(String queueName,String messageId){
+        queueName = virtualHostName+"_"+queueName;
+        try {
+            Message message = memoryDataCenter.getMessageWithId(messageId);
+            if(message == null){
+                throw new MQException("[VirtualHost] 要确认的消息不存在！"+messageId);
+            }
+            MSGQueue queue = memoryDataCenter.getQueue(queueName);
+            if(queue == null){
+                throw new MQException("[VirtualHost] 要确认的队列不存在！"+queueName);
+            }
+            //删除硬盘数据
+            if(message.getDeliverMode() == 2){
+                diskDataCenter.deleteMessage(queue,message);
+            }
+            //删除消息中心
+            memoryDataCenter.deleteMessage(messageId);
+            //删除待确认集合
+            memoryDataCenter.deleteWithAckMessage(queueName,message);
+            log.info("[VirtualHost] 消费者主动应答消费消息成功！");
+            return true;
+        }catch (Exception e){
+            log.error("[VirtualHost] 消费者主动应答消费消息失败！{}->{}",queueName,messageId);
+            return false;
+        }
+    }
+}
+```
+
+### 6. 虚拟主机测试的常量类
+
+```java
+package org.zlh.messagequeuedemo.common.constant;
+
+/**
+ * @author pluchon
+ * @create 2026-03-30-18:34
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//虚拟主机测试类常量
+public class ConstantForVirtualHostTest {
+    public static final String VIRTUAL_HOST_TEST_NAME_1 = "virtual_host_test_name_1";
+
+    public static final String EXCHANGE_TEST_NAME_1 = "exchange_test_name_1";
+    public static final String EXCHANGE_NOT_EXIST = "exchange_not_exist";
+
+    public static final String QUEUE_TEST_NAME_1 = "queue_test_name_1";
+    public static final String QUEUE_TEST_NAME_2 = "queue_test_name_2";
+    public static final String QUEUE_NOT_EXIST = "queue_not_exist";
+
+    public static final String BINGDING_KEY_TEST_1 = "bingding_key_teest_1";
+    public static final String BINGDING_KEY_FOR_TOPIC_TEST_1 = "aaa.*.bbb";
+    // Topic 不匹配的 bindingKey，用于验证路由过滤
+    public static final String BINGDING_KEY_FOR_TOPIC_NO_MATCH = "xxx.yyy.zzz";
+
+    public static final String ROUTING_KEY_FOR_TOPIC_TEST_1 = "aaa.ccc.bbb";
+    // 非法的 routingKey（含特殊字符）
+    public static final String ROUTING_KEY_INVALID = "aaa@bbb!ccc";
+
+    public static final String MESSAGE_CONTENT_TEST_1 = "test_content_1";
+    public static final String MESSAGE_CONTENT_TEST_2 = "test_content_2";
+
+    public static final String CONSUMER_TAG_TEST_1 = "consumer_tag_test_1";
+    public static final String CONSUMER_TAG_TEST_2 = "consumer_tag_test_2";
+
+    // 不存在的消息ID
+    public static final String MESSAGE_ID_NOT_EXIST = "M-00000000-0000-0000-0000-000000000000";
+}
+```
+
+### 7. 虚拟主机测试类  
+
+```java
+package org.zlh.messagequeuedemo.mqserver;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.zlh.messagequeuedemo.MessageQueueDemoApplication;
+import org.zlh.messagequeuedemo.common.constant.ConstantForVirtualHostTest;
+import org.zlh.messagequeuedemo.mqserver.core.ExchangeTtype;
+
+import java.io.File;
+import java.io.IOException;
+
+/**
+ * @author pluchon
+ * @create 2026-03-30-18:32
+ * 作者代码水平一般，难免难看，请见谅
+ */
+//虚拟主机测试类
+@SpringBootTest
+@Slf4j
+class VirtualHostTest {
+    private VirtualHost virtualHost = null;
+
+    @BeforeEach
+    public void setUp(){
+        //测试到了硬盘，需要mybatis，保证初始化完成
+        MessageQueueDemoApplication.context = SpringApplication.run(MessageQueueDemoApplication.class);
+        virtualHost = new VirtualHost(ConstantForVirtualHostTest.VIRTUAL_HOST_TEST_NAME_1);
+    }
+
+    @AfterEach
+    public void tearDown() throws IOException {
+        //关闭context，也就是关闭服务
+        MessageQueueDemoApplication.context.close();
+        //删除硬盘目录，不管有没有内容
+        File file = new File("./data");
+        FileUtils.deleteDirectory(file);
+        virtualHost = null;
+    }
+
+    //创建交换机
+    @Test
+    public void testExchangeDeclare(){
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+    }
+
+    //删除交换机
+    @Test
+    public void testExchangeDelete(){
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.exchangeDelete(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+    }
+
+    //创建队列
+    @Test
+    public void testQueueDeclare(){
+        boolean isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+    }
+
+    //删除队列
+    @Test
+    public void testQueueDelete(){
+        boolean isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDelete(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+    }
+
+    //创建绑定关系
+    @Test
+    public void testQueueBingding(){
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertTrue(isOk);
+    }
+
+    //删除绑定关系
+    @Test
+    public void testQueueBingdingDelete(){
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDelete(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+    }
+
+    //发布消息
+    @Test
+    public void testBasicPublish(){
+        //创建交换机与队列
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+        //发布消息，我们测试的是直接交换机，我们都routingKey就是我们要发的队列名字
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,null,ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertTrue(isOk);
+    }
+
+    //订阅消息->先发消息后订阅队列，扇出交换机
+    @Test
+    public void testBasicConsume1() throws InterruptedException {
+        //创建交换机与队列
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+        //订阅队列
+        isOk = virtualHost.basicConsume(ConstantForVirtualHostTest.CONSUMER_TAG_TEST_1, ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, (consumerType, basicProperties, body) -> {
+                    //消费者自身取设定的回调方法
+                    log.info("[VirtualHost] 订阅消息->{}->{}",basicProperties.getMessageID(),new String(body));
+                    Assertions.assertEquals(ConstantForVirtualHostTest.BINGDING_KEY_TEST_1,basicProperties.getRoutingKey());
+                    //默认是不去持久化的
+                    Assertions.assertEquals(1,basicProperties.getDeliverMode());
+                    //验证消息内容
+                    Assertions.assertArrayEquals(ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes(),body);
+                });
+        Assertions.assertTrue(isOk);
+        //休眠下线程，保证上面订阅执行完成
+        Thread.sleep(500);
+        //发送消息
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,null,ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertTrue(isOk);
+    }
+
+    //订阅消息->先订阅后发消息，扇出交换机
+    @Test
+    public void testBasicConsumer2() throws InterruptedException {
+        //创建交换机与队列，注意是广播交换机，均匀广播消息
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.FINOUT,true,false,null);
+        Assertions.assertTrue(isOk);
+
+        //创建两组队列与绑定关系
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,false,false,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,"");
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_2,false,false,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_2,ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,"");
+        Assertions.assertTrue(isOk);
+
+        //在交换机中发布一个消息，但是由于我们是扇出交换机，我们发出了两条ID不同但是内容一样的消息
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,""
+                ,null,ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertTrue(isOk);
+
+        //第一个消费者订阅第一个队列
+        isOk = virtualHost.basicConsume(ConstantForVirtualHostTest.CONSUMER_TAG_TEST_1, ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, (consumerType, basicProperties, body) -> {
+                    log.info("[VirtualHost] 订阅队列消息->{}->{}",consumerType,basicProperties.getMessageID());
+                    Assertions.assertEquals(ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes(),body);
+                });
+        Assertions.assertTrue(isOk);
+
+        //确保回调方法执行完毕
+        Thread.sleep(500);
+
+        //第二个消费者订阅第二个队列
+        isOk = virtualHost.basicConsume(ConstantForVirtualHostTest.CONSUMER_TAG_TEST_2, ConstantForVirtualHostTest.QUEUE_TEST_NAME_2,
+                true, (consumerType, basicProperties, body) -> {
+                    log.info("[VirtualHost] 订阅队列消息->{}->{}",consumerType,basicProperties.getMessageID());
+                    Assertions.assertEquals(ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes(),body);
+                });
+        Assertions.assertTrue(isOk);
+
+        //确保回调方法执行完毕
+        Thread.sleep(500);
+    }
+
+    //测试主题交换机
+    @Test
+    public void testBasicConsumeTopic() throws InterruptedException {
+        //创建主题交换机
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.TYPOIC,true,false,null);
+        Assertions.assertTrue(isOk);
+        //创建队列
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,false,false,false,null);
+        Assertions.assertTrue(isOk);
+        //建立绑定关系，制定好绑定关系
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ConstantForVirtualHostTest.BINGDING_KEY_FOR_TOPIC_TEST_1);
+        Assertions.assertTrue(isOk);
+        //发送消息
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,ConstantForVirtualHostTest.ROUTING_KEY_FOR_TOPIC_TEST_1
+                ,null,ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertTrue(isOk);
+        //订阅消息
+        isOk = virtualHost.basicConsume(ConstantForVirtualHostTest.CONSUMER_TAG_TEST_1, ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                , true, (consumerType, basicProperties, body) -> {
+                    log.info("[VirtualHost] 订阅队列消息->{}->{}",consumerType,basicProperties.getMessageID());
+                    Assertions.assertEquals(ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes(),body);
+                });
+        Assertions.assertTrue(isOk);
+
+        //确保回调方法执行完毕
+        Thread.sleep(500);
+    }
+
+    //测试手动调用basicAck
+    @Test
+    public void testBasciAck() throws InterruptedException {
+        //创建交换机与队列
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1
+                ,ExchangeTtype.DIRECT,true,false,null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,true,false,false,null);
+        Assertions.assertTrue(isOk);
+
+        //休眠下线程，保证上面代码执行完成
+        Thread.sleep(500);
+
+        //订阅队列
+        isOk = virtualHost.basicConsume(ConstantForVirtualHostTest.CONSUMER_TAG_TEST_1, ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                false, (consumerType, basicProperties, body) -> {
+                    //消费者自身取设定的回调方法
+                    log.info("[VirtualHost] 订阅消息->{}->{}", basicProperties.getMessageID(), new String(body));
+                    Assertions.assertEquals(ConstantForVirtualHostTest.BINGDING_KEY_TEST_1, basicProperties.getRoutingKey());
+                    //默认是不去持久化的
+                    Assertions.assertEquals(1, basicProperties.getDeliverMode());
+                    //验证消息内容
+                    Assertions.assertArrayEquals(ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes(), body);
+
+                    //针对autoAck调用
+                    boolean ok = virtualHost.basicAck(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1, basicProperties.getMessageID());
+                    Assertions.assertTrue(ok);
+                });
+        Assertions.assertTrue(isOk);
+
+        //发送消息
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1, ConstantForVirtualHostTest.QUEUE_TEST_NAME_1
+                ,null, ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertTrue(isOk);
+
+        //休眠下线程，保证上面代码执行完成
+        Thread.sleep(500);
+    }
+
+    // -------- 1. 边界条件：幂等性测试 --------
+    //重复创建同名交换机（应返回true，幂等）
+    @Test
+    public void testExchangeDeclareDuplicate() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+        //再次创建相同名字的交换机
+        isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+    }
+
+    //重复创建同名队列（应返回true，幂等）
+    @Test
+    public void testQueueDeclareDuplicate() {
+        boolean isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, false, false, null);
+        Assertions.assertTrue(isOk);
+        //再次创建相同名字的队列
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, false, false, null);
+        Assertions.assertTrue(isOk);
+    }
+
+    //重复创建同一绑定关系（应返回true，幂等）
+    @Test
+    public void testBingdingDeclareDuplicate() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, false, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1, ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertTrue(isOk);
+        //再次创建相同的绑定关系
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1, ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertTrue(isOk);
+    }
+
+    // -------- 2. 异常情况：删除不存在的资源 --------
+    //删除不存在的交换机（应返回false）
+    @Test
+    public void testDeleteNonExistentExchange() {
+        boolean isOk = virtualHost.exchangeDelete(ConstantForVirtualHostTest.EXCHANGE_NOT_EXIST);
+        Assertions.assertFalse(isOk);
+    }
+
+    //删除不存在的队列（应返回false）
+    @Test
+    public void testDeleteNonExistentQueue() {
+        boolean isOk = virtualHost.queueDelete(ConstantForVirtualHostTest.QUEUE_NOT_EXIST);
+        Assertions.assertFalse(isOk);
+    }
+
+    //删除不存在的绑定关系（应返回false）
+    @Test
+    public void testDeleteNonExistentBingding() {
+        boolean isOk = virtualHost.bingdingDelete(ConstantForVirtualHostTest.QUEUE_NOT_EXIST,
+                ConstantForVirtualHostTest.EXCHANGE_NOT_EXIST);
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 3. 异常情况：绑定不存在的交换机或队列 --------
+    //绑定时交换机不存在（应返回false）
+    @Test
+    public void testBingdingWithNonExistentExchange() {
+        boolean isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, false, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_NOT_EXIST, ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertFalse(isOk);
+    }
+
+    //绑定时队列不存在（应返回false）
+    @Test
+    public void testBingdingWithNonExistentQueue() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_NOT_EXIST,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1, ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 4. 异常情况：发布消息到不存在的交换机 --------
+    @Test
+    public void testPublishToNonExistentExchange() {
+        boolean isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_NOT_EXIST,
+                ConstantForVirtualHostTest.QUEUE_TEST_NAME_1, null,
+                ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 5. 异常情况：发布消息到不存在的队列（DIRECT交换机） --------
+    @Test
+    public void testPublishToNonExistentQueue() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+        //routingKey指向一个不存在的队列
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ConstantForVirtualHostTest.QUEUE_NOT_EXIST, null,
+                ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 6. 异常情况：非法的routingKey --------
+    @Test
+    public void testPublishWithInvalidRoutingKey() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+        //使用包含特殊字符的routingKey
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ConstantForVirtualHostTest.ROUTING_KEY_INVALID, null,
+                ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 7. 边界条件：Topic交换机路由不匹配 --------
+    //消息的routingKey与bindingKey不匹配时，消息不应该被投递到队列中
+    @Test
+    public void testTopicRouteNoMatch() throws InterruptedException {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.TYPOIC, true, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                false, false, false, null);
+        Assertions.assertTrue(isOk);
+        //绑定关系使用不匹配的bindingKey
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ConstantForVirtualHostTest.BINGDING_KEY_FOR_TOPIC_NO_MATCH);
+        Assertions.assertTrue(isOk);
+        //发送消息，routingKey与bindingKey不匹配
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ConstantForVirtualHostTest.ROUTING_KEY_FOR_TOPIC_TEST_1, null,
+                ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        //消息仍然发送成功（只是没有匹配的队列接收）
+        Assertions.assertTrue(isOk);
+        //订阅该队列，由于没有匹配的消息投递，回调不应该被触发
+        //使用标志位来验证
+        final boolean[] callbackInvoked = {false};
+        isOk = virtualHost.basicConsume(ConstantForVirtualHostTest.CONSUMER_TAG_TEST_1,
+                ConstantForVirtualHostTest.QUEUE_TEST_NAME_1, true,
+                (consumerType, basicProperties, body) -> {
+                    callbackInvoked[0] = true;
+                });
+        Assertions.assertTrue(isOk);
+        Thread.sleep(500);
+        //验证回调没有被触发
+        Assertions.assertFalse(callbackInvoked[0]);
+    }
+
+    // -------- 8. 异常情况：对不存在的消息进行ACK --------
+    @Test
+    public void testAckNonExistentMessage() {
+        boolean isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, false, false, null);
+        Assertions.assertTrue(isOk);
+        //对不存在的消息ID进行确认
+        isOk = virtualHost.basicAck(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.MESSAGE_ID_NOT_EXIST);
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 9. 异常情况：对不存在的队列进行ACK --------
+    @Test
+    public void testAckNonExistentQueue() {
+        boolean isOk = virtualHost.basicAck(ConstantForVirtualHostTest.QUEUE_NOT_EXIST,
+                ConstantForVirtualHostTest.MESSAGE_ID_NOT_EXIST);
+        Assertions.assertFalse(isOk);
+    }
+
+    // -------- 10. 边界条件：非持久化交换机和队列的创建与删除 --------
+    @Test
+    public void testNonPermanentExchangeAndQueue() {
+        //创建非持久化交换机（不写入硬盘）
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, false, false, null);
+        Assertions.assertTrue(isOk);
+        //创建非持久化队列（不写入硬盘）
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                false, false, false, null);
+        Assertions.assertTrue(isOk);
+        //删除非持久化交换机
+        isOk = virtualHost.exchangeDelete(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+        //删除非持久化队列
+        isOk = virtualHost.queueDelete(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+    }
+
+    // -------- 11. 边界条件：连续发布多条消息到同一队列 --------
+    @Test
+    public void testPublishMultipleMessages() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, true, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                true, false, false, null);
+        Assertions.assertTrue(isOk);
+        //发送第一条消息
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ConstantForVirtualHostTest.QUEUE_TEST_NAME_1, null,
+                ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        Assertions.assertTrue(isOk);
+        //发送第二条消息
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ConstantForVirtualHostTest.QUEUE_TEST_NAME_1, null,
+                ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_2.getBytes());
+        Assertions.assertTrue(isOk);
+    }
+
+    // -------- 12. 并发条件：多线程同时创建交换机 --------
+    @Test
+    public void testConcurrentExchangeDeclare() throws InterruptedException {
+        final int threadCount = 10;
+        Thread[] threads = new Thread[threadCount];
+        boolean[] results = new boolean[threadCount];
+        for (int i = 0; i < threadCount; i++) {
+            int idx = i;
+            threads[i] = new Thread(() -> {
+                results[idx] = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                        ExchangeTtype.DIRECT, true, false, null);
+            });
+        }
+        for (Thread t : threads) {
+            t.start();
+        }
+        for (Thread t : threads) {
+            t.join();
+        }
+        //所有线程都应该返回true（幂等创建）
+        for (boolean result : results) {
+            Assertions.assertTrue(result);
+        }
+    }
+
+    // -------- 13. 并发条件：多线程同时创建队列 --------
+    @Test
+    public void testConcurrentQueueDeclare() throws InterruptedException {
+        final int threadCount = 10;
+        Thread[] threads = new Thread[threadCount];
+        boolean[] results = new boolean[threadCount];
+        for (int i = 0; i < threadCount; i++) {
+            int idx = i;
+            threads[i] = new Thread(() -> {
+                results[idx] = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                        true, false, false, null);
+            });
+        }
+        for (Thread t : threads) {
+            t.start();
+        }
+        for (Thread t : threads) {
+            t.join();
+        }
+        //所有线程都应该返回true（幂等创建）
+        for (boolean result : results) {
+            Assertions.assertTrue(result);
+        }
+    }
+
+    // -------- 14. 边界条件：先删除交换机再删除绑定关系（方案二验证） --------
+    @Test
+    public void testDeleteExchangeBeforeBingding() {
+        //创建全套
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, false, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                false, false, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1, ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertTrue(isOk);
+        //先删交换机
+        isOk = virtualHost.exchangeDelete(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+        //再删绑定关系（交换机已不存在，方案二下应该仍然能删）
+        isOk = virtualHost.bingdingDelete(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1);
+        //根据当前实现，先查绑定关系是否在内存中存在，交换机不在了但绑定仍在内存中
+        //具体结果取决于实现，此处验证不会抛异常崩溃即可
+        log.info("[VirtualHostTest] 先删交换机再删绑定关系结果: {}", isOk);
+    }
+
+    // -------- 15. 边界条件：先删除队列再删除绑定关系（方案二验证） --------
+    @Test
+    public void testDeleteQueueBeforeBingding() {
+        //创建全套
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.DIRECT, false, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.queueDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                false, false, false, null);
+        Assertions.assertTrue(isOk);
+        isOk = virtualHost.bingdingDeclare(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1, ConstantForVirtualHostTest.BINGDING_KEY_TEST_1);
+        Assertions.assertTrue(isOk);
+        //先删队列
+        isOk = virtualHost.queueDelete(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1);
+        Assertions.assertTrue(isOk);
+        //再删绑定关系（队列已不存在）
+        isOk = virtualHost.bingdingDelete(ConstantForVirtualHostTest.QUEUE_TEST_NAME_1,
+                ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1);
+        log.info("[VirtualHostTest] 先删队列再删绑定关系结果: {}", isOk);
+    }
+
+    // -------- 16. 边界条件：发布消息到没有任何绑定的fanout交换机 --------
+    @Test
+    public void testPublishToFanoutWithNoBindings() {
+        boolean isOk = virtualHost.exchangeDeclare(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                ExchangeTtype.FINOUT, true, false, null);
+        Assertions.assertTrue(isOk);
+        //不创建任何队列和绑定关系，直接发送消息
+        //消息应该发送成功，但不会被投递到任何队列
+        isOk = virtualHost.basicPublish(ConstantForVirtualHostTest.EXCHANGE_TEST_NAME_1,
+                "", null, ConstantForVirtualHostTest.MESSAGE_CONTENT_TEST_1.getBytes());
+        //注意：如果 queryAllBingding 返回 null，此处可能会失败，这也是一个需要验证的边界条件
+        log.info("[VirtualHostTest] 无绑定的fanout交换机发布消息结果: {}", isOk);
+    }
+}
+```
