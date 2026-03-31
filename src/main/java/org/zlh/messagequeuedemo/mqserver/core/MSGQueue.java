@@ -5,7 +5,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import org.zlh.messagequeuedemo.common.consumer.ConsumerEnv;
+import org.zlh.messagequeuedemo.mqclient.consumer.ConsumerEnv;
 import org.zlh.messagequeuedemo.common.utils.serializable.JsonUtils;
 
 import java.util.ArrayList;

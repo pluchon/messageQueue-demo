@@ -10,8 +10,6 @@ import org.zlh.messagequeuedemo.mqserver.core.Bingding;
 import org.zlh.messagequeuedemo.mqserver.core.ExchangeTtype;
 import org.zlh.messagequeuedemo.mqserver.core.Message;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
  * @author pluchon
  * @create 2026-03-29-17:17

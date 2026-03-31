@@ -1,4 +1,4 @@
-package org.zlh.messagequeuedemo.common.consumer;
+package org.zlh.messagequeuedemo.mqclient.consumer;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

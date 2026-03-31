@@ -1,6 +1,9 @@
-package org.zlh.messagequeuedemo.common.consumer;
+package org.zlh.messagequeuedemo.mqclient.consumer;
 
+import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.mqserver.core.BasicProperties;
+
+import java.io.IOException;
 
 /**
  * @author pluchon
@@ -12,5 +15,5 @@ import org.zlh.messagequeuedemo.mqserver.core.BasicProperties;
 public interface Consumer {
     //处理消息投递，即在每次收到消息后被调用
     //当我们的消费者消费到消息之后，通过参数可以进行传递，从而处理此回调函数
-    void handleDelivery(String consumerType, BasicProperties basicProperties,byte[] body);
+    void handleDelivery(String consumerType, BasicProperties basicProperties,byte[] body) throws MQException, IOException;
 }

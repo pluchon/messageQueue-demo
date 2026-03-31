@@ -1,7 +1,6 @@
 package org.zlh.messagequeuedemo.mqserver.datacenter;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.mqserver.core.Bingding;
 import org.zlh.messagequeuedemo.mqserver.core.Exchange;

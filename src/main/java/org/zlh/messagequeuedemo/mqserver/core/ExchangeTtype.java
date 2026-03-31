@@ -1,7 +1,6 @@
 package org.zlh.messagequeuedemo.mqserver.core;
 
 import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.Getter;
 
 /**

@@ -1,9 +1,6 @@
 package org.zlh.messagequeuedemo.mqserver.datacenter;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.annotations.Mapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.zlh.messagequeuedemo.MessageQueueDemoApplication;
 import org.zlh.messagequeuedemo.mqserver.core.Bingding;
 import org.zlh.messagequeuedemo.mqserver.core.Exchange;

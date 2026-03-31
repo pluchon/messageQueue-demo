@@ -2,8 +2,8 @@ package org.zlh.messagequeuedemo.mqserver.core;
 
 import lombok.extern.slf4j.Slf4j;
 import org.zlh.messagequeuedemo.common.constant.ConstantForConsumerManagerTest;
-import org.zlh.messagequeuedemo.common.consumer.Consumer;
-import org.zlh.messagequeuedemo.common.consumer.ConsumerEnv;
+import org.zlh.messagequeuedemo.mqclient.consumer.Consumer;
+import org.zlh.messagequeuedemo.mqclient.consumer.ConsumerEnv;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.mqserver.VirtualHost;
 

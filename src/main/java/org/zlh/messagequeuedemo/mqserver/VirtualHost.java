@@ -2,7 +2,7 @@ package org.zlh.messagequeuedemo.mqserver;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.zlh.messagequeuedemo.common.consumer.Consumer;
+import org.zlh.messagequeuedemo.mqclient.consumer.Consumer;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.common.utils.router.RouterUtils;
 import org.zlh.messagequeuedemo.mqserver.core.*;

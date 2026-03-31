@@ -1,14 +1,10 @@
 package org.zlh.messagequeuedemo.common.utils.router;
 
-import lombok.Getter;
 import org.springframework.util.StringUtils;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.mqserver.core.Bingding;
 import org.zlh.messagequeuedemo.mqserver.core.ExchangeTtype;
 import org.zlh.messagequeuedemo.mqserver.core.Message;
-
-import java.util.Arrays;
-import java.util.stream.Stream;
 
 /**
  * @author pluchon

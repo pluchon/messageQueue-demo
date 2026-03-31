@@ -3369,13 +3369,14 @@ public interface Consumer {
 }
 ```
 
-### 2. 定义消费者类  
+### 2. 定义消费者类
 
 ```java
 package org.zlh.messagequeuedemo.common.consumer;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.zlh.messagequeuedemo.mqclient.consumer.Consumer;
 
 /**
  * @author pluchon
@@ -3405,8 +3406,8 @@ package org.zlh.messagequeuedemo.mqserver.core;
 
 import lombok.extern.slf4j.Slf4j;
 import org.zlh.messagequeuedemo.common.constant.ConstantForConsumerManagerTest;
-import org.zlh.messagequeuedemo.common.consumer.Consumer;
-import org.zlh.messagequeuedemo.common.consumer.ConsumerEnv;
+import org.zlh.messagequeuedemo.mqclient.consumer.Consumer;
+import org.zlh.messagequeuedemo.mqclient.consumer.ConsumerEnv;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.mqserver.VirtualHost;
 
@@ -3565,7 +3566,7 @@ package org.zlh.messagequeuedemo.mqserver;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.zlh.messagequeuedemo.common.consumer.Consumer;
+import org.zlh.messagequeuedemo.mqclient.consumer.Consumer;
 import org.zlh.messagequeuedemo.common.exception.MQException;
 import org.zlh.messagequeuedemo.common.utils.router.RouterUtils;
 import org.zlh.messagequeuedemo.mqserver.core.*;
@@ -3623,7 +3624,7 @@ public class VirtualHost {
     // TODO 或者是给每个虚拟主机分配一个不同的数据库文件
     // 此处为了不麻烦，我们采用 交换机名字 = 虚拟主机名 + 分隔符 + 真实的交换机名字
     public boolean exchangeDeclare(String exchangeName, ExchangeTtype type, boolean isPermanent, boolean isDelete,
-            Map<String, Object> argument) {
+                                   Map<String, Object> argument) {
         // 把交换机名字加上虚拟主机作为前缀
         exchangeName = virtualHostName + "_" + exchangeName;
         try {
@@ -3688,7 +3689,7 @@ public class VirtualHost {
 
     // 创建队列
     public boolean queueDeclare(String queueName, boolean isPermanet, boolean exclusive, boolean isDelete,
-            Map<String, Object> argument) {
+                                Map<String, Object> argument) {
         queueName = virtualHostName + "_" + queueName;
         try {
             synchronized (queueLocker) {
@@ -3753,8 +3754,8 @@ public class VirtualHost {
         try {
             //对于绑定关系，只有同时拿到两把锁才可以进行操作，要保证和我们删除操作的加锁顺序一致性
             //这样才可以尽可能避免死锁
-            synchronized (queueLocker){
-                synchronized (exchangeLocker){
+            synchronized (queueLocker) {
+                synchronized (exchangeLocker) {
                     // 查询绑定关系是否已经存在
                     Bingding bingdingOnce = memoryDataCenter.getBingdingOnce(exchangeName, queueName);
                     if (bingdingOnce != null) {
@@ -3805,8 +3806,8 @@ public class VirtualHost {
         exchangeName = virtualHostName + "_" + exchangeName;
         try {
             //保证和我们的呢创建队列的加锁顺序一致性
-            synchronized (queueLocker){
-                synchronized (exchangeLocker){
+            synchronized (queueLocker) {
+                synchronized (exchangeLocker) {
                     Bingding bingdingOnce = memoryDataCenter.getBingdingOnce(exchangeName, queueName);
                     if (bingdingOnce == null) {
                         throw new MQException("[VirtualHost] 绑定关系不存在！" + queueName + "->" + exchangeName);
@@ -3843,64 +3844,64 @@ public class VirtualHost {
     }
 
     //发送消息到指定的交换机->队列中
-    public boolean basicPublish(String exchangeName, String routingKey, BasicProperties basicProperties,byte[] body){
+    public boolean basicPublish(String exchangeName, String routingKey, BasicProperties basicProperties, byte[] body) {
         try {
             //转换交换机名字
-            exchangeName = virtualHostName+"_"+exchangeName;
+            exchangeName = virtualHostName + "_" + exchangeName;
             //检查routingKey合法性
-            if(RouterUtils.checkRoutingKey(routingKey)){
-                throw new MQException("[VirtualHost] routingKey非法->"+routingKey);
+            if (RouterUtils.checkRoutingKey(routingKey)) {
+                throw new MQException("[VirtualHost] routingKey非法->" + routingKey);
             }
             //查找交换机对象
             Exchange exchange = memoryDataCenter.getExchange(exchangeName);
-            if(exchange == null){
-                throw new MQException("[VirtualHost] 交换机不存在->"+exchangeName);
+            if (exchange == null) {
+                throw new MQException("[VirtualHost] 交换机不存在->" + exchangeName);
             }
             //根据其类型判断要做什么类型的转发
             ExchangeTtype type = exchange.getExchangeType();
-            if(type == ExchangeTtype.DIRECT){
+            if (type == ExchangeTtype.DIRECT) {
                 //直接转发，以routingKey作为队列名，把消息写入指定队列(没有绑定没关系)
-                String queueName = virtualHostName+"_"+routingKey;
-                Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                String queueName = virtualHostName + "_" + routingKey;
+                Message message = Message.messageCreateWithIDFactory(routingKey, basicProperties, body);
                 //查找队列对象
                 MSGQueue queue = memoryDataCenter.getQueue(queueName);
-                if(queue == null){
-                    throw new MQException("[VirtualHost] 队列不存在！"+queueName);
+                if (queue == null) {
+                    throw new MQException("[VirtualHost] 队列不存在！" + queueName);
                 }
                 //转发消息
-                sendMessage(queue,message);
-                log.info("[VirtualHost] 直接交换机转发成功！{}",exchangeName);
+                sendMessage(queue, message);
+                log.info("[VirtualHost] 直接交换机转发成功！{}", exchangeName);
                 return true;
-            }else{
+            } else {
                 //按照fanout和topic转发
                 //找到该交换机关联的所有绑定的队列
                 ConcurrentHashMap<String, Bingding> stringBingdingConcurrentHashMap = memoryDataCenter.queryAllBingding(exchangeName);
-                for(Map.Entry<String,Bingding> e : stringBingdingConcurrentHashMap.entrySet()){
+                for (Map.Entry<String, Bingding> e : stringBingdingConcurrentHashMap.entrySet()) {
                     //获取绑定对象，判断对嘞是否存在
                     Bingding bingding = e.getValue();
                     MSGQueue queue = memoryDataCenter.getQueue(bingding.getQueueName());
                     //说明当前绑定没有匹配的队列
-                    if(queue == null){
+                    if (queue == null) {
                         //不抛出异常，可能有多处这样的队列
-                        log.info("[VirtualHost] 队列不存在->"+bingding.getQueueName());
+                        log.info("[VirtualHost] 队列不存在->" + bingding.getQueueName());
                         continue;
                     }
                     //构造消息
-                    Message message = Message.messageCreateWithIDFactory(routingKey,basicProperties,body);
+                    Message message = Message.messageCreateWithIDFactory(routingKey, basicProperties, body);
                     //判断这个消息能否转发给该队列！
                     //fanout->所有绑定的队列都转发，topic->校验routingKey与bingdingKey
                     //校验是否能进行转发，如果是topic要比对bingdingKey和routingKey
-                    if(!RouterUtils.route(type,bingding,message)){
+                    if (!RouterUtils.route(type, bingding, message)) {
                         continue;
                     }
                     //转发
-                    sendMessage(queue,message);
+                    sendMessage(queue, message);
                 }
-                log.info("[VirtualHost] fanout&topic交换机转发成功！{}",exchangeName);
+                log.info("[VirtualHost] fanout&topic交换机转发成功！{}", exchangeName);
                 return true;
             }
-        }catch (Exception e){
-            log.error("[VirtualHost] 消息发送失败->{}",exchangeName);
+        } catch (Exception e) {
+            log.error("[VirtualHost] 消息发送失败->{}", exchangeName);
             return false;
         }
     }
@@ -3909,11 +3910,11 @@ public class VirtualHost {
     private void sendMessage(MSGQueue queue, Message message) throws MQException, IOException, InterruptedException {
         int deliverMode = message.getDeliverMode();
         //持久化
-        if(deliverMode == 2){
-            diskDataCenter.insertMessage(queue,message);
+        if (deliverMode == 2) {
+            diskDataCenter.insertMessage(queue, message);
         }
         //写入内存
-        memoryDataCenter.sendMessage(queue,message);
+        memoryDataCenter.sendMessage(queue, message);
         //通知消费者来消费消息
         consumerManager.notifyConsumeMessage(queue.getName());
     }
@@ -3922,42 +3923,42 @@ public class VirtualHost {
     //consumerType->消费者的身份标识，queueName->队列名字，qutoAck->应答方式（也就是消息消费之后，true->自动应答，false->手动告诉队列应答成功）
     //consumer->函数式接口：收到消息后调用consumer这个函数，之后我们传实参就可以传lambda了
     //因为一个队列可以有多个消费者，为了避免同时取冲突，因此我们采用消费者轮流来（轮询）的方式取就好了
-    public boolean basicConsume(String consumerTag, String queueName, boolean autoAck, Consumer consumer){
-        queueName = virtualHostName+"_"+queueName;
+    public boolean basicConsume(String consumerTag, String queueName, boolean autoAck, Consumer consumer) {
+        queueName = virtualHostName + "_" + queueName;
         try {
-            consumerManager.addConsumer(consumerTag,queueName,autoAck,consumer);
-            log.info("[VirtualHost] 订阅消息成功！{}",queueName);
+            consumerManager.addConsumer(consumerTag, queueName, autoAck, consumer);
+            log.info("[VirtualHost] 订阅消息成功！{}", queueName);
             return true;
-        }catch (Exception e){
-            log.error("[VirtualHost] 订阅消息失败！{}",queueName);
+        } catch (Exception e) {
+            log.error("[VirtualHost] 订阅消息失败！{}", queueName);
             return false;
         }
     }
 
     //主动应答
-    public boolean basicAck(String queueName,String messageId){
-        queueName = virtualHostName+"_"+queueName;
+    public boolean basicAck(String queueName, String messageId) {
+        queueName = virtualHostName + "_" + queueName;
         try {
             Message message = memoryDataCenter.getMessageWithId(messageId);
-            if(message == null){
-                throw new MQException("[VirtualHost] 要确认的消息不存在！"+messageId);
+            if (message == null) {
+                throw new MQException("[VirtualHost] 要确认的消息不存在！" + messageId);
             }
             MSGQueue queue = memoryDataCenter.getQueue(queueName);
-            if(queue == null){
-                throw new MQException("[VirtualHost] 要确认的队列不存在！"+queueName);
+            if (queue == null) {
+                throw new MQException("[VirtualHost] 要确认的队列不存在！" + queueName);
             }
             //删除硬盘数据
-            if(message.getDeliverMode() == 2){
-                diskDataCenter.deleteMessage(queue,message);
+            if (message.getDeliverMode() == 2) {
+                diskDataCenter.deleteMessage(queue, message);
             }
             //删除消息中心
             memoryDataCenter.deleteMessage(messageId);
             //删除待确认集合
-            memoryDataCenter.deleteWithAckMessage(queueName,message);
+            memoryDataCenter.deleteWithAckMessage(queueName, message);
             log.info("[VirtualHost] 消费者主动应答消费消息成功！");
             return true;
-        }catch (Exception e){
-            log.error("[VirtualHost] 消费者主动应答消费消息失败！{}->{}",queueName,messageId);
+        } catch (Exception e) {
+            log.error("[VirtualHost] 消费者主动应答消费消息失败！{}->{}", queueName, messageId);
             return false;
         }
     }
